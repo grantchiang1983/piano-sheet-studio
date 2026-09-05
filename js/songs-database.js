@@ -6,15 +6,15 @@
 const SONGS_DATABASE = [
     {
         id: 'bass_b_minor',
-        title: '低音譜表律動 (D Major / Bm Bass Ostinato)',
+        title: '低音譜表律動 (4 小節實體譜)',
         composer: '低音伴奏練習 (依實體譜編制)',
         key: 'D',
         timeSignature: '4/4',
         bpm: 96,
         difficulty: '低音識譜 ★☆☆☆☆',
-        description: '依據您上傳的樂譜編制：低音譜表、D大調/b小調(兩升號)、4/4拍。第1、3拍四分休止符，第2、4拍強奏第一間 A2 (La) 保持音。',
+        description: '依據您上傳的實體樂譜原貌：低音譜表、兩升號調號、4/4拍，共 4 小節。第 1、3 拍四分休止符，第 2、4 拍強奏第一間 A2 (La) 保持音。',
         notes: [
-            // Measure 1 (實體譜前奏)
+            // Measure 1
             { pitch: 'rest', isRest: true, duration: 1, clef: 'bass', hand: 'left', measure: 1, beat: 1 },
             { pitch: 'A2', midi: 45, duration: 1, clef: 'bass', hand: 'left', measure: 1, beat: 2, tenuto: true },
             { pitch: 'rest', isRest: true, duration: 1, clef: 'bass', hand: 'left', measure: 1, beat: 3 },
@@ -36,29 +36,7 @@ const SONGS_DATABASE = [
             { pitch: 'rest', isRest: true, duration: 1, clef: 'bass', hand: 'left', measure: 4, beat: 1 },
             { pitch: 'A2', midi: 45, duration: 1, clef: 'bass', hand: 'left', measure: 4, beat: 2, tenuto: true },
             { pitch: 'rest', isRest: true, duration: 1, clef: 'bass', hand: 'left', measure: 4, beat: 3 },
-            { pitch: 'A2', midi: 45, duration: 1, clef: 'bass', hand: 'left', measure: 4, beat: 4, tenuto: true },
-
-            // Measure 5 (右手旋律加入合奏)
-            { pitch: 'F#4', midi: 66, duration: 1, clef: 'treble', hand: 'right', measure: 5, beat: 1 },
-            { pitch: 'A2', midi: 45, duration: 1, clef: 'bass', hand: 'left', measure: 5, beat: 2, tenuto: true },
-            { pitch: 'D5', midi: 74, duration: 1, clef: 'treble', hand: 'right', measure: 5, beat: 3 },
-            { pitch: 'A2', midi: 45, duration: 1, clef: 'bass', hand: 'left', measure: 5, beat: 4, tenuto: true },
-
-            // Measure 6
-            { pitch: 'C#5', midi: 73, duration: 1, clef: 'treble', hand: 'right', measure: 6, beat: 1 },
-            { pitch: 'A2', midi: 45, duration: 1, clef: 'bass', hand: 'left', measure: 6, beat: 2, tenuto: true },
-            { pitch: 'B4', midi: 71, duration: 1, clef: 'treble', hand: 'right', measure: 6, beat: 3 },
-            { pitch: 'A2', midi: 45, duration: 1, clef: 'bass', hand: 'left', measure: 6, beat: 4, tenuto: true },
-
-            // Measure 7
-            { pitch: 'A4', midi: 69, duration: 1, clef: 'treble', hand: 'right', measure: 7, beat: 1 },
-            { pitch: 'A2', midi: 45, duration: 1, clef: 'bass', hand: 'left', measure: 7, beat: 2, tenuto: true },
-            { pitch: 'F#4', midi: 66, duration: 1, clef: 'treble', hand: 'right', measure: 7, beat: 3 },
-            { pitch: 'A2', midi: 45, duration: 1, clef: 'bass', hand: 'left', measure: 7, beat: 4, tenuto: true },
-
-            // Measure 8 (終止式)
-            { pitch: 'D5', midi: 74, duration: 4, clef: 'treble', hand: 'right', measure: 8, beat: 1 },
-            { pitch: 'D3', midi: 50, duration: 4, clef: 'bass', hand: 'left', measure: 8, beat: 1 }
+            { pitch: 'A2', midi: 45, duration: 1, clef: 'bass', hand: 'left', measure: 4, beat: 4, tenuto: true }
         ]
     },
     {
