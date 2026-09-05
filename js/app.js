@@ -25,6 +25,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 player.handleUserPlayNote(midi);
             }
 
+            // If in editor mode and key was clicked by user, forward to score editor
+            if (currentMode === 'editor' && !isExternal) {
+                editor.handlePianoKeyPress(midi);
+            }
+
             // If recording, log note
             if (isRecording) {
                 recordNoteOn(midi);
@@ -42,6 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     const activeNotesSet = new Set();
+    let currentMode = 'score';
 
     // 4. Initialize Score Player
     const player = new ScorePlayer(audio, piano, staff);
@@ -50,6 +56,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const midi = new MidiController({
         onNoteOn: (midiNote, velocity) => {
             piano.pressKey(midiNote, velocity, false);
+            if (currentMode === 'editor') {
+                editor.handlePianoKeyPress(midiNote);
+            }
         },
         onNoteOff: (midiNote) => {
             piano.releaseKey(midiNote);
@@ -61,6 +70,9 @@ document.addEventListener('DOMContentLoaded', () => {
             updateMidiUI(status);
         }
     });
+
+    // 6. Initialize Score Editor
+    const editor = new ScoreEditor(audio, piano, staff, player);
 
     // Recording State
     let isRecording = false;
@@ -86,16 +98,44 @@ document.addEventListener('DOMContentLoaded', () => {
     const modeFreeBtn = document.getElementById('mode-free-btn');
     const modeScoreBtn = document.getElementById('mode-score-btn');
     const modePracticeBtn = document.getElementById('mode-practice-btn');
+    const modeEditorBtn = document.getElementById('mode-editor-btn');
     const practiceStatsBanner = document.getElementById('practice-stats-banner');
 
     // Populate Repertoire Select
-    SONGS_DATABASE.forEach((song, idx) => {
-        const opt = document.createElement('option');
-        opt.value = song.id;
-        opt.textContent = `${song.title} (${song.difficulty})`;
-        if (idx === 0) opt.selected = true;
-        songSelect.appendChild(opt);
-    });
+    function populateSongSelect(selectedId = null) {
+        songSelect.innerHTML = '';
+        const songs = (typeof window.getMergedSongsDatabase === 'function') 
+            ? window.getMergedSongsDatabase() 
+            : window.SONGS_DATABASE;
+        window.SONGS_DATABASE = songs;
+
+        songs.forEach((song, idx) => {
+            const opt = document.createElement('option');
+            opt.value = song.id;
+            const isCustom = song.id.startsWith('user_') || song.id.startsWith('imported_') || song.id.startsWith('recorded_');
+            const prefix = isCustom ? '⭐ ' : '';
+            opt.textContent = `${prefix}${song.title} (${song.difficulty || '自訂'})`;
+            if (selectedId ? (song.id === selectedId) : (idx === 0)) {
+                opt.selected = true;
+            }
+            songSelect.appendChild(opt);
+        });
+    }
+
+    populateSongSelect();
+
+    // Sync when editor updates song
+    editor.onSongUpdated = (updatedSong, refreshSelect = false) => {
+        if (refreshSelect) {
+            populateSongSelect(updatedSong.id);
+        }
+        bpmSlider.value = updatedSong.bpm || 100;
+        bpmDisplay.textContent = `${updatedSong.bpm || 100} BPM`;
+        document.getElementById('song-desc').textContent = updatedSong.description || '';
+        if (player.currentSong && player.currentSong.id === updatedSong.id) {
+            player.currentSong = updatedSong;
+        }
+    };
 
     // Load initial song
     player.loadSong(SONGS_DATABASE[0]);
@@ -105,6 +145,12 @@ document.addEventListener('DOMContentLoaded', () => {
         modeFreeBtn.classList.remove('active');
         modeScoreBtn.classList.remove('active');
         modePracticeBtn.classList.remove('active');
+        if (modeEditorBtn) modeEditorBtn.classList.remove('active');
+        currentMode = newMode;
+
+        if (newMode !== 'editor') {
+            editor.deactivate();
+        }
 
         if (newMode === 'free') {
             modeFreeBtn.classList.add('active');
@@ -129,22 +175,36 @@ document.addEventListener('DOMContentLoaded', () => {
             player.setPracticeMode(true);
             practiceStatsBanner.classList.remove('hidden');
             document.getElementById('song-controls-bar').classList.remove('mode-live-dimmed');
+        } else if (newMode === 'editor') {
+            if (modeEditorBtn) modeEditorBtn.classList.add('active');
+            player.stop();
+            player.setPracticeMode(false);
+            practiceStatsBanner.classList.add('hidden');
+            document.getElementById('song-controls-bar').classList.remove('mode-live-dimmed');
+            const currentSongId = songSelect.value;
+            const song = SONGS_DATABASE.find(s => s.id === currentSongId) || SONGS_DATABASE[0];
+            editor.activate(song);
         }
     }
 
     modeFreeBtn.addEventListener('click', () => switchMode('free'));
     modeScoreBtn.addEventListener('click', () => switchMode('score'));
     modePracticeBtn.addEventListener('click', () => switchMode('practice'));
+    if (modeEditorBtn) modeEditorBtn.addEventListener('click', () => switchMode('editor'));
 
     // Song Selection Change
     songSelect.addEventListener('change', () => {
         const songId = songSelect.value;
         const song = SONGS_DATABASE.find(s => s.id === songId);
         if (song) {
-            player.loadSong(song);
             bpmSlider.value = song.bpm;
             bpmDisplay.textContent = `${song.bpm} BPM`;
             document.getElementById('song-desc').textContent = song.description;
+            if (currentMode === 'editor') {
+                editor.activate(song);
+            } else {
+                player.loadSong(song);
+            }
         }
     });
 
@@ -273,14 +333,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 notes: recordedNotes
             };
 
-            SONGS_DATABASE.unshift(customSong);
-            const opt = document.createElement('option');
-            opt.value = customSong.id;
-            opt.textContent = `⭐ ${customSong.title}`;
-            songSelect.insertBefore(opt, songSelect.firstChild);
-            songSelect.value = customSong.id;
+            editor.currentSong = customSong;
+            editor.saveToStorage(false);
+            populateSongSelect(customSong.id);
             switchMode('score');
-            alert(`🎉 錄音完成！已自動將您的彈奏轉化為五線譜（共 ${recordedNotes.length} 個音符），可直接播放！`);
+            alert(`🎉 錄音完成！已自動將您的彈奏轉化為五線譜（共 ${recordedNotes.length} 個音符），可直接播放或切換至「✏️ 樂譜編輯器」自由修改！`);
         }
     });
 
@@ -388,6 +445,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 150);
     });
 
-    // Default mode: Score View
-    switchMode('score');
+    // Default mode: Score View (supports URL parameter ?mode=editor&select=2)
+    const urlParams = new URLSearchParams(window.location.search);
+    const initialMode = urlParams.get('mode') || 'score';
+    switchMode(initialMode);
+    if (initialMode === 'editor') {
+        const selIdx = parseInt(urlParams.get('select') || '0', 10);
+        setTimeout(() => editor.selectNote(selIdx), 60);
+    }
 });

@@ -314,4 +314,33 @@ const SONGS_DATABASE = [
     }
 ];
 
-window.SONGS_DATABASE = SONGS_DATABASE;
+window.DEFAULT_SONGS_DATABASE = JSON.parse(JSON.stringify(SONGS_DATABASE));
+
+// Helper to load and merge custom scores from localStorage
+function getMergedSongsDatabase() {
+    const list = JSON.parse(JSON.stringify(window.DEFAULT_SONGS_DATABASE));
+    try {
+        const stored = localStorage.getItem('piano_sheet_custom_scores_v1');
+        if (stored) {
+            const customScores = JSON.parse(stored);
+            if (Array.isArray(customScores)) {
+                // Add or override songs
+                customScores.forEach(customSong => {
+                    const idx = list.findIndex(s => s.id === customSong.id);
+                    if (idx >= 0) {
+                        list[idx] = customSong;
+                    } else {
+                        list.unshift(customSong);
+                    }
+                });
+            }
+        }
+    } catch (e) {
+        console.error('Failed to merge custom scores:', e);
+    }
+    return list;
+}
+
+window.getMergedSongsDatabase = getMergedSongsDatabase;
+window.SONGS_DATABASE = getMergedSongsDatabase();
+

@@ -10,10 +10,12 @@
 class StaffRenderer {
     constructor(containerId) {
         this.container = document.getElementById(containerId);
-        this.mode = 'live'; // 'live' or 'song'
+        this.mode = 'live'; // 'live', 'song', or 'editor'
         this.currentSong = null;
         this.activeMidiNotes = new Set(); // Set of currently active MIDI numbers
         this.activeSongNoteIndex = -1;
+        this.editorSelectedNoteIndex = -1;
+        this.onNoteClick = null;
 
         // Music Theory Constants
         this.pitchNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -46,6 +48,44 @@ class StaffRenderer {
         this.activeSongNoteIndex = index;
         if (this.mode === 'song') {
             this.updateSongCursor();
+        }
+    }
+
+    setEditorSelectedNote(index) {
+        this.editorSelectedNoteIndex = index;
+        if (this.mode === 'song' || this.mode === 'editor') {
+            const noteItems = this.container.querySelectorAll('.song-note-item');
+            noteItems.forEach(el => el.classList.remove('editor-selected'));
+            const oldRect = this.container.querySelector('.editor-selection-rect');
+            if (oldRect) oldRect.remove();
+
+            const selectedEl = this.container.querySelector(`.song-note-item[data-index="${index}"]`);
+            if (selectedEl) {
+                selectedEl.classList.add('editor-selected');
+                const firstSvgChild = selectedEl.querySelector('ellipse') || selectedEl.querySelector('text');
+                const xVal = parseFloat(firstSvgChild?.getAttribute('cx') || firstSvgChild?.getAttribute('x') || 0);
+                if (xVal > 0) {
+                    const rectElem = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                    rectElem.setAttribute('class', 'editor-selection-rect');
+                    rectElem.setAttribute('x', (xVal - 18).toString());
+                    rectElem.setAttribute('y', '20');
+                    rectElem.setAttribute('width', '36');
+                    rectElem.setAttribute('height', '230');
+                    selectedEl.prepend(rectElem);
+                }
+
+                const scrollWrapper = document.getElementById('score-scroll-wrapper');
+                if (scrollWrapper) {
+                    const elRect = selectedEl.getBoundingClientRect();
+                    const wrapRect = scrollWrapper.getBoundingClientRect();
+                    if (elRect.left < wrapRect.left + 50 || elRect.right > wrapRect.right - 50) {
+                        scrollWrapper.scrollTo({
+                            left: Math.max(0, xVal - scrollWrapper.clientWidth / 2),
+                            behavior: 'smooth'
+                        });
+                    }
+                }
+            }
         }
     }
 
@@ -513,9 +553,13 @@ class StaffRenderer {
 
             // Handle Rest (休止符)
             if (note.isRest || note.pitch === 'rest' || !note.midi) {
-                const restY = note.clef === 'treble' ? 72 : 192;
+                const restY = note.clef === 'bass' ? 192 : 72;
+                const isSelected = (this.editorSelectedNoteIndex === index);
+                const selRect = isSelected ? `<rect class="editor-selection-rect" x="${x - 18}" y="20" width="36" height="230"/>` : '';
+                const selClass = isSelected ? ' editor-selected' : '';
                 svg += `
-                    <g class="song-note-item song-rest-item" id="song-note-${index}" data-index="${index}">
+                    <g class="song-note-item song-rest-item${selClass}" id="song-note-${index}" data-index="${index}" style="cursor: pointer;">
+                        ${selRect}
                         <text x="${x}" y="${restY}" text-anchor="middle" font-size="28" fill="#94a3b8" font-family="'Noto Music', 'Bravura', serif">𝄽</text>
                         <text x="${x}" y="${restY + 28}" text-anchor="middle" font-size="9" fill="#64748b">休止</text>
                     </g>
@@ -617,8 +661,13 @@ class StaffRenderer {
                 }
             });
 
+            const isSelected = (this.editorSelectedNoteIndex === index);
+            const selRect = isSelected ? `<rect class="editor-selection-rect" x="${x - 18}" y="20" width="36" height="230"/>` : '';
+            const selClass = isSelected ? ' editor-selected' : '';
+
             svg += `
-                <g class="song-note-item" id="song-note-${index}" data-index="${index}" style="cursor: pointer;">
+                <g class="song-note-item${selClass}" id="song-note-${index}" data-index="${index}" style="cursor: pointer;">
+                    ${selRect}
                     ${ledgerLinesSvg}
                     ${accidentalsSvg}
                     ${noteheadsSvg}
@@ -642,6 +691,18 @@ class StaffRenderer {
 
         svg += `</g></svg></div>`;
         this.container.innerHTML = svg;
+
+        // Bind note click listeners
+        const noteItems = this.container.querySelectorAll('.song-note-item');
+        noteItems.forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const idx = parseInt(item.getAttribute('data-index'), 10);
+                if (typeof this.onNoteClick === 'function') {
+                    this.onNoteClick(idx);
+                }
+            });
+        });
     }
 
     /**

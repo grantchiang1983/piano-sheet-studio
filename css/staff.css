@@ -87,3 +87,36 @@
 #song-playback-cursor {
     transition: transform 0.12s cubic-bezier(0.2, 0, 0, 1);
 }
+
+/* Editor Selected Note Styles */
+.song-note-item.editor-selected ellipse {
+    stroke: #f59e0b !important;
+    stroke-width: 2.5px !important;
+    filter: drop-shadow(0 0 6px rgba(245, 158, 11, 0.8));
+}
+
+.song-note-item.editor-selected .note-name-label {
+    fill: #f59e0b !important;
+    font-weight: 800;
+}
+
+.song-note-item.editor-selected text {
+    filter: drop-shadow(0 0 4px rgba(245, 158, 11, 0.6));
+}
+
+.editor-selection-rect {
+    fill: rgba(245, 158, 11, 0.12);
+    stroke: #f59e0b;
+    stroke-width: 1.5;
+    stroke-dasharray: 4, 3;
+    rx: 6;
+    ry: 6;
+    pointer-events: none;
+    animation: pulseBorder 1.5s infinite ease-in-out;
+}
+
+@keyframes pulseBorder {
+    0%, 100% { stroke-opacity: 0.8; fill-opacity: 0.12; }
+    50% { stroke-opacity: 1; fill-opacity: 0.22; }
+}
+

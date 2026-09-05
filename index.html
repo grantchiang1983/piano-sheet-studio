@@ -61,6 +61,9 @@
                 <button id="mode-score-btn" class="mode-tab-btn active">
                     <span>🎼 樂譜播放示範</span>
                 </button>
+                <button id="mode-editor-btn" class="mode-tab-btn">
+                    <span>✏️ 樂譜編輯器</span>
+                </button>
                 <button id="mode-practice-btn" class="mode-tab-btn">
                     <span>🎯 互動跟彈練習</span>
                 </button>
@@ -84,6 +87,91 @@
             <div class="streak-counter">
                 <span>連擊數: </span>
                 <span id="practice-streak-val">0 連擊 🔥</span>
+            </div>
+        </div>
+
+        <!-- Score Editor Toolbar (Shown in Editor Mode) -->
+        <div id="editor-toolbar-section" class="editor-toolbar hidden">
+            <!-- Top Status & Global Actions -->
+            <div class="editor-status-bar">
+                <div class="editor-selected-info">
+                    <span class="editor-badge">當前選取</span>
+                    <span id="editor-note-info-text">點擊五線譜上的任一音符開始編輯</span>
+                </div>
+                <div class="editor-global-actions">
+                    <button id="editor-meta-btn" class="btn-editor-tool" title="修改曲名、調號、拍號與速度">⚙️ 曲目設定</button>
+                    <button id="editor-new-score-btn" class="btn-editor-tool" title="新建空白樂譜進行創作">➕ 新建樂譜</button>
+                    <button id="editor-save-btn" class="btn-editor-tool btn-gold" title="儲存修改至瀏覽器本機 (LocalStorage)">💾 儲存修改</button>
+                    <button id="editor-export-btn" class="btn-editor-tool" title="匯出樂譜為 JSON 檔案">📤 匯出 JSON</button>
+                    <button id="editor-import-btn" class="btn-editor-tool" title="匯入外部樂譜 JSON 檔案">📥 匯入 JSON</button>
+                    <button id="editor-reset-btn" class="btn-editor-tool btn-danger-subtle" title="還原此曲至原廠初始設定">↺ 原廠還原</button>
+                    <input type="file" id="score-import-input" accept=".json" style="display: none;">
+                </div>
+            </div>
+
+            <!-- Note Editing Controls Palette -->
+            <div class="editor-controls-palette">
+                <!-- Duration Palette -->
+                <div class="editor-control-group">
+                    <span class="editor-group-title">時值:</span>
+                    <div class="btn-group duration-btn-group">
+                        <button class="editor-duration-btn" data-duration="4" title="全音符 (4 拍)">𝅝 全音 (4拍)</button>
+                        <button class="editor-duration-btn" data-duration="2" title="二分音符 (2 拍)">𝅗𝅥 二分 (2拍)</button>
+                        <button class="editor-duration-btn active" data-duration="1" title="四分音符 (1 拍)">♩ 四分 (1拍)</button>
+                        <button class="editor-duration-btn" data-duration="0.5" title="八分音符 (0.5 拍)">♪ 八分 (半拍)</button>
+                        <button class="editor-duration-btn" data-duration="0.25" title="十六分音符 (0.25 拍)">𝅘𝅥𝅯 十六分 (1/4拍)</button>
+                        <button id="editor-toggle-rest-btn" class="editor-opt-btn" title="轉為休止符 / 音符">𝄽 休止符</button>
+                    </div>
+                </div>
+
+                <!-- Clef & Hands -->
+                <div class="editor-control-group">
+                    <span class="editor-group-title">譜號:</span>
+                    <div class="btn-group">
+                        <button id="editor-clef-treble-btn" class="editor-opt-btn" title="設為高音譜 (右手)">𝄞 高音 (右)</button>
+                        <button id="editor-clef-bass-btn" class="editor-opt-btn" title="設為低音譜 (左手)">𝄢 低音 (左)</button>
+                        <button id="editor-clef-both-btn" class="editor-opt-btn" title="設為雙手合奏">雙手合奏</button>
+                    </div>
+                </div>
+
+                <!-- Accidentals & Pitch Tuning -->
+                <div class="editor-control-group">
+                    <span class="editor-group-title">音高/記號:</span>
+                    <div class="btn-group">
+                        <button id="editor-semitone-up-btn" class="editor-opt-btn" title="升半音 (可按鍵盤 ↑)">▲ 升半音</button>
+                        <button id="editor-semitone-down-btn" class="editor-opt-btn" title="降半音 (可按鍵盤 ↓)">▼ 降半音</button>
+                        <button id="editor-acc-sharp-btn" class="editor-opt-btn" title="強制加升號 (♯)">♯ 升號</button>
+                        <button id="editor-acc-flat-btn" class="editor-opt-btn" title="強制加降號 (♭)">♭ 降號</button>
+                        <button id="editor-acc-nat-btn" class="editor-opt-btn" title="強制加還原號 (♮)">♮ 還原</button>
+                    </div>
+                </div>
+
+                <!-- Articulations -->
+                <div class="editor-control-group">
+                    <span class="editor-group-title">演奏標記:</span>
+                    <div class="btn-group">
+                        <button id="editor-tenuto-btn" class="editor-opt-btn" title="保持音 (Tenuto ─)">─ 保持音</button>
+                        <button id="editor-accent-btn" class="editor-opt-btn" title="強音/重音 (Accent &gt;)">> 重音</button>
+                        <button id="editor-tie-btn" class="editor-opt-btn" title="延音線 (Tie ⌒)">⌒ 延音線</button>
+                    </div>
+                </div>
+
+                <!-- Chord Mode & Structure -->
+                <div class="editor-control-group">
+                    <span class="editor-group-title">結構增刪:</span>
+                    <div class="btn-group">
+                        <button id="editor-chord-mode-btn" class="editor-opt-btn" title="開啟和弦模式：彈奏琴鍵會將音疊加進當前和弦，而非替換單音">🎹 和弦堆疊: OFF</button>
+                        <button id="editor-prev-note-btn" class="editor-opt-btn" title="選取上一個音符 (←)">◀ 上一個</button>
+                        <button id="editor-next-note-btn" class="editor-opt-btn" title="選取下一個音符 (→)">下一個 ▶</button>
+                        <button id="editor-insert-before-btn" class="editor-opt-btn" title="在當前音符前方插入新音符">➕ 前插</button>
+                        <button id="editor-insert-after-btn" class="editor-opt-btn" title="在當前音符後方插入新音符">➕ 後插</button>
+                        <button id="editor-delete-note-btn" class="editor-opt-btn btn-danger-subtle" title="刪除選取音符 (可按 Delete 或 Backspace)">🗑️ 刪除</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="editor-quick-hint">
+                💡 <strong>編輯技巧</strong>：點擊五線譜上任一音符後，直接彈奏下方<strong>虛擬琴鍵、打字鍵盤 (QWERTY) 或 USB 電子琴</strong>即可直接替換音高！按鍵盤 <code>←</code> <code>→</code> 可前後移動選音，按 <code>↑</code> <code>↓</code> 可半音升降。
             </div>
         </div>
 
@@ -247,6 +335,7 @@
 
                 <h3 style="margin-top: 12px;">🎼 核心功能說明</h3>
                 <ul style="padding-left: 20px; display: flex; flex-direction: column; gap: 8px;">
+                    <li><strong>✏️ 樂譜編輯器</strong>：點選五線譜上任何音符即可選取，直接彈奏虛擬琴鍵或實體電子琴即刻換音；支援全音/二分/四分/八分/十六分時值變更、和弦堆疊、升降記號、保持音、重音、前後插音、小節重排、調號拍號設定、本機儲存與 JSON 匯出入！</li>
                     <li><strong>自由彈奏識譜</strong>：彈奏任何鍵，大譜表立即精準畫出音符位置與加線，並顯示音名、唱名、簡譜與即時和弦判定。</li>
                     <li><strong>樂譜示範播放</strong>：選取經典曲目，一鍵自動播放，游標與琴鍵雙向同步跑動，並可調節速度與節拍器。</li>
                     <li><strong>互動跟彈練習</strong>：系統停在當前音符等待您按下正確琴鍵，彈對即推進下一音，鍛鍊五線譜看譜反應速度。</li>
@@ -257,13 +346,126 @@
         </div>
     </div>
 
+    <!-- Song Metadata Modal -->
+    <div id="song-meta-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2>⚙️ 編輯樂譜屬性設定</h2>
+                <button id="close-meta-modal-btn" class="btn-close">✕</button>
+            </div>
+            <div class="modal-body">
+                <form id="song-meta-form" onsubmit="return false;">
+                    <div class="form-row">
+                        <label for="meta-title">樂曲名稱:</label>
+                        <input type="text" id="meta-title" class="form-input" required>
+                    </div>
+                    <div class="form-row">
+                        <label for="meta-composer">作曲者 / 備註:</label>
+                        <input type="text" id="meta-composer" class="form-input">
+                    </div>
+                    <div class="form-row-group">
+                        <div class="form-row">
+                            <label for="meta-key">調號 (Key):</label>
+                            <select id="meta-key" class="form-input">
+                                <option value="C">C 大調 / a 小調 (無升降)</option>
+                                <option value="G">G 大調 / e 小調 (1 升 ♯)</option>
+                                <option value="D">D 大調 / b 小調 (2 升 ♯♯)</option>
+                                <option value="A">A 大調 / f# 小調 (3 升 ♯♯♯)</option>
+                                <option value="E">E 大調 / c# 小調 (4 升 ♯♯♯♯)</option>
+                                <option value="B">B 大調 / g# 小調 (5 升 ♯♯♯♯♯)</option>
+                                <option value="F">F 大調 / d 小調 (1 降 ♭)</option>
+                                <option value="Bb">B♭ 大調 / g 小調 (2 降 ♭♭)</option>
+                                <option value="Eb">E♭ 大調 / c 小調 (3 降 ♭♭♭)</option>
+                                <option value="Ab">A♭ 大調 / f 小調 (4 降 ♭♭♭♭)</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <label for="meta-time-sig">拍號 (Time Sig):</label>
+                            <select id="meta-time-sig" class="form-input">
+                                <option value="4/4">4/4 拍 (標準常見)</option>
+                                <option value="3/4">3/4 拍 (圓舞曲節奏)</option>
+                                <option value="2/4">2/4 拍 (進行曲)</option>
+                                <option value="6/8">6/8 拍 (搖擺三連音)</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <label for="meta-bpm">預設速度 (BPM):</label>
+                            <input type="number" id="meta-bpm" class="form-input" min="40" max="240" value="100">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <label for="meta-desc">樂曲背景介紹:</label>
+                        <textarea id="meta-desc" class="form-input" rows="3"></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" id="cancel-meta-btn" class="btn-secondary">取消</button>
+                        <button type="button" id="save-meta-btn" class="btn-primary">確認更新樂譜資訊</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- New Blank Score Modal -->
+    <div id="new-score-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2>➕ 建立全新空白樂譜</h2>
+                <button id="close-new-score-btn" class="btn-close">✕</button>
+            </div>
+            <div class="modal-body">
+                <form id="new-score-form" onsubmit="return false;">
+                    <div class="form-row">
+                        <label for="new-score-title">樂曲名稱:</label>
+                        <input type="text" id="new-score-title" class="form-input" value="我的全新鋼琴自創曲" required>
+                    </div>
+                    <div class="form-row-group">
+                        <div class="form-row">
+                            <label for="new-score-key">調號 (Key):</label>
+                            <select id="new-score-key" class="form-input">
+                                <option value="C" selected>C 大調 (無升降)</option>
+                                <option value="G">G 大調 (1 升 ♯)</option>
+                                <option value="D">D 大調 (2 升 ♯♯)</option>
+                                <option value="A">A 大調 (3 升 ♯♯♯)</option>
+                                <option value="F">F 大調 (1 降 ♭)</option>
+                                <option value="Bb">B♭ 大調 (2 降 ♭♭)</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <label for="new-score-time-sig">拍號:</label>
+                            <select id="new-score-time-sig" class="form-input">
+                                <option value="4/4" selected>4/4 拍</option>
+                                <option value="3/4">3/4 拍</option>
+                                <option value="2/4">2/4 拍</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <label for="new-score-measures">建立小節數:</label>
+                            <select id="new-score-measures" class="form-input">
+                                <option value="2">2 小節 (極簡旋律)</option>
+                                <option value="4" selected>4 小節 (標準樂句)</option>
+                                <option value="8">8 小節 (雙樂句段落)</option>
+                                <option value="16">16 小節 (完整樂章)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" id="cancel-new-score-btn" class="btn-secondary">取消</button>
+                        <button type="button" id="confirm-new-score-btn" class="btn-primary">建立樂譜並開始編輯</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- Application Scripts -->
-    <script src="js/audio-engine.js?v=1.6"></script>
-    <script src="js/songs-database.js?v=1.6"></script>
-    <script src="js/staff-renderer.js?v=1.6"></script>
-    <script src="js/piano-view.js?v=1.6"></script>
-    <script src="js/score-player.js?v=1.6"></script>
-    <script src="js/midi-controller.js?v=1.6"></script>
-    <script src="js/app.js?v=1.6"></script>
+    <script src="js/audio-engine.js?v=1.7"></script>
+    <script src="js/songs-database.js?v=1.7"></script>
+    <script src="js/staff-renderer.js?v=1.7"></script>
+    <script src="js/piano-view.js?v=1.7"></script>
+    <script src="js/score-player.js?v=1.7"></script>
+    <script src="js/score-editor.js?v=1.7"></script>
+    <script src="js/midi-controller.js?v=1.7"></script>
+    <script src="js/app.js?v=1.7"></script>
 </body>
 </html>
