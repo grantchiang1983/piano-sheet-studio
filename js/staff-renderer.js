@@ -145,8 +145,8 @@ class StaffRenderer {
         // Clef Symbols
         // Treble Clef 𝄞
         svg += `<text x="56" y="91" class="clef-symbol" font-size="56" fill="#f8fafc" font-family="'Noto Music', 'Bravura', serif">𝄞</text>`;
-        // Bass Clef 𝄢
-        svg += `<text x="58" y="187" class="clef-symbol" font-size="44" fill="#f8fafc" font-family="'Noto Music', 'Bravura', serif">𝄢</text>`;
+        // Bass Clef (High-precision SVG Vector anchored to Line 4)
+        svg += this.renderBassClef(58);
 
         // Staff Labels
         svg += `<text x="75" y="32" class="staff-tag" font-size="11" fill="#4ade80" font-weight="600">高音譜表 (Treble Staff)</text>`;
@@ -330,6 +330,27 @@ class StaffRenderer {
     }
 
     /**
+     * High-precision authentic SVG F-Clef (Bass Clef) vector anchored to staff lines:
+     * Staff lines: Line 5 (166px), Line 4 (178px), Line 3 (190px), Line 2 (202px), Line 1 (214px)
+     * Standard F-Clef geometry:
+     * - Main dot centered squarely on Line 4 (F3, y=178)
+     * - Upper arch rises to Line 5 (A3, y=166)
+     * - Tail descends to Line 2 (B2, y=202)
+     * - Two dots placed symmetrically in Space 4 (y=172) and Space 3 (y=184), flanking Line 4!
+     */
+    renderBassClef(startX = 52) {
+        const scale = 0.02032176;
+        const offsetX = startX - 25.18;
+        const offsetY = 36.40;
+        const pathData = "M 1239,8245 C 1397,8138 1515,8057 1591,8001 C 1667,7946 1747,7877 1829,7795 C 1911,7713 1980,7620 2036,7517 C 2080,7441 2118,7353 2149,7253 C 2180,7154 2196,7058 2199,6967 C 2199,6882 2188,6801 2165,6725 C 2143,6648 2105,6585 2051,6534 C 1997,6484 1927,6459 1840,6459 C 1756,6459 1677,6476 1603,6509 C 1530,6543 1478,6597 1449,6673 C 1449,6680 1445,6689 1439,6702 C 1441,6718 1449,6730 1464,6739 C 1479,6748 1492,6752 1504,6752 C 1510,6752 1527,6749 1553,6743 C 1580,6737 1602,6733 1620,6733 C 1673,6733 1720,6752 1763,6789 C 1805,6826 1826,6871 1826,6924 C 1826,6962 1815,6998 1794,7031 C 1773,7064 1744,7091 1707,7110 C 1670,7130 1629,7139 1585,7139 C 1505,7139 1437,7115 1381,7066 C 1326,7016 1298,6953 1298,6874 C 1298,6773 1329,6686 1390,6612 C 1452,6538 1530,6483 1626,6446 C 1721,6408 1817,6390 1915,6390 C 2022,6390 2124,6417 2219,6472 C 2315,6526 2390,6601 2446,6694 C 2502,6788 2531,6888 2531,6996 C 2531,7188 2467,7366 2339,7531 C 2211,7696 2053,7839 1864,7961 C 1738,8044 1534,8156 1253,8297 L 1239,8245 z M 2628,6698 C 2628,6662 2641,6632 2667,6608 C 2692,6583 2723,6571 2760,6571 C 2792,6571 2822,6585 2849,6612 C 2876,6638 2889,6669 2889,6703 C 2889,6739 2875,6770 2849,6795 C 2821,6819 2790,6831 2755,6831 C 2718,6831 2688,6819 2664,6792 C 2640,6766 2628,6735 2628,6698 z M 2628,7222 C 2628,7186 2641,7155 2665,7131 C 2690,7106 2721,7094 2760,7094 C 2792,7094 2821,7107 2849,7134 C 2875,7161 2889,7190 2889,7222 C 2889,7261 2876,7292 2851,7317 C 2825,7342 2795,7355 2760,7355 C 2721,7355 2690,7342 2665,7318 C 2641,7294 2628,7262 2628,7222 z";
+        return `
+            <g class="clef-symbol clef-bass" transform="translate(${offsetX.toFixed(2)}, ${offsetY.toFixed(2)}) scale(${scale})">
+                <path d="${pathData}" fill="#f8fafc" />
+            </g>
+        `;
+    }
+
+    /**
      * Render Full Song Score View with Measures and Playback Tracking
      */
     renderSongView() {
@@ -379,7 +400,7 @@ class StaffRenderer {
         // Clefs & Time Signature
         svg += `
             <text x="50" y="91" class="clef-symbol" font-size="54" fill="#f8fafc" font-family="'Noto Music', 'Bravura', serif">𝄞</text>
-            <text x="52" y="187" class="clef-symbol" font-size="42" fill="#f8fafc" font-family="'Noto Music', 'Bravura', serif">𝄢</text>
+            ${this.renderBassClef(50)}
             
             <!-- Time Signature -->
             <text x="100" y="68" font-size="22" font-weight="bold" fill="#e2b714" text-anchor="middle">${song.timeSignature.split('/')[0]}</text>
@@ -439,16 +460,19 @@ class StaffRenderer {
             // Tenuto line (保持音短橫線)
             let tenutoSvg = '';
             if (note.tenuto) {
-                const tenutoY = y > 130 ? y + 12 : y - 12;
-                tenutoSvg = `<line x1="${x - 7}" y1="${tenutoY}" x2="${x + 7}" y2="${tenutoY}" stroke="${color}" stroke-width="2"/>`;
+                // In bass staff, Line 1 is y=214; place tenuto clearly below Line 1 (y=222) if note is near bottom of staff
+                const tenutoY = y > 130 ? Math.max(y + 12, 222) : Math.min(y - 12, 38);
+                tenutoSvg = `<line x1="${x - 7}" y1="${tenutoY}" x2="${x + 7}" y2="${tenutoY}" stroke="${color}" stroke-width="2.2" stroke-linecap="round"/>`;
             }
+
+            const labelY = y > 130 ? (note.tenuto ? 237 : y + 26) : (note.tenuto ? 24 : y - 22);
 
             svg += `
                 <g class="song-note-item" id="song-note-${index}" data-index="${index}" style="cursor: pointer;">
                     <ellipse cx="${x}" cy="${y}" rx="6.5" ry="4.8" transform="rotate(-22 ${x} ${y})" fill="${fill}" stroke="${stroke}" stroke-width="${isHollow ? 2 : 1}"/>
                     ${this.renderStem(noteInfo.diatonicStep, x, y, color)}
                     ${tenutoSvg}
-                    <text x="${x}" y="${y > 130 ? y + 26 : y - 22}" text-anchor="middle" font-size="10" fill="#cbd5e1" class="note-name-label">
+                    <text x="${x}" y="${labelY}" text-anchor="middle" font-size="10" fill="#cbd5e1" class="note-name-label">
                         ${noteInfo.name}
                     </text>
                 </g>
