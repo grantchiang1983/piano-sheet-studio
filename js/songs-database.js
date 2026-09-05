@@ -6,37 +6,61 @@
 const SONGS_DATABASE = [
     {
         id: 'bass_b_minor',
-        title: '低音譜表律動 (4 小節實體譜)',
-        composer: '低音伴奏練習 (依實體譜編制)',
+        title: '實體大譜表全曲 (Grand Staff 4 小節雙手合奏)',
+        composer: '古典名品 (依實體原譜完整解析編制)',
         key: 'D',
         timeSignature: '4/4',
-        bpm: 96,
-        difficulty: '低音識譜 ★☆☆☆☆',
-        description: '依據您上傳的實體樂譜原貌：低音譜表、兩升號調號、4/4拍，共 4 小節。第 1、3 拍四分休止符，第 2、4 拍強奏第一間 A2 (La) 保持音。',
+        bpm: 88,
+        difficulty: '雙手大譜表 ★★★☆☆',
+        description: '依據您最新上傳的實體大譜表完整原貌：D大調/b小調兩升號。左手貫徹 A2 屬音持續低音律動，右手呈現華麗的 D/A 和弦、E-D#-E-F# 半音階裝飾旋律、高音 D 大調主和弦與第 4 小節強音重音終止式！',
         notes: [
-            // Measure 1
-            { pitch: 'rest', isRest: true, duration: 1, clef: 'bass', hand: 'left', measure: 1, beat: 1 },
+            // ==================== Measure 1 ====================
+            // Beat 1: 右手 D/A 和弦 (A4-D5-F#5)
+            { pitch: 'D/A', chord: ['A4', 'D5', 'F#5'], midi: [69, 74, 78], duration: 1, clef: 'treble', hand: 'right', measure: 1, beat: 1 },
+            // Beat 2: 左手 A2 保持音
             { pitch: 'A2', midi: 45, duration: 1, clef: 'bass', hand: 'left', measure: 1, beat: 2, tenuto: true },
-            { pitch: 'rest', isRest: true, duration: 1, clef: 'bass', hand: 'left', measure: 1, beat: 3 },
+            // Beat 3: 右手 A 大調屬和弦 (A4-C#5-E5)
+            { pitch: 'A', chord: ['A4', 'C#5', 'E5'], midi: [69, 73, 76], duration: 1, clef: 'treble', hand: 'right', measure: 1, beat: 3 },
+            // Beat 4: 左手 A2 保持音
             { pitch: 'A2', midi: 45, duration: 1, clef: 'bass', hand: 'left', measure: 1, beat: 4, tenuto: true },
 
-            // Measure 2
-            { pitch: 'rest', isRest: true, duration: 1, clef: 'bass', hand: 'left', measure: 2, beat: 1 },
-            { pitch: 'A2', midi: 45, duration: 1, clef: 'bass', hand: 'left', measure: 2, beat: 2, tenuto: true },
-            { pitch: 'rest', isRest: true, duration: 1, clef: 'bass', hand: 'left', measure: 2, beat: 3 },
+            // ==================== Measure 2 ====================
+            // Beat 1.0: 右手 Em 織體 (G4-B4-E5)
+            { pitch: 'Em', chord: ['G4', 'B4', 'E5'], midi: [67, 71, 76], duration: 0.5, clef: 'treble', hand: 'right', measure: 2, beat: 1 },
+            // Beat 1.5: 右手半音裝飾音 D#5
+            { pitch: 'D#5', midi: 75, showAccidental: true, duration: 0.5, clef: 'treble', hand: 'right', measure: 2, beat: 1.5 },
+            // Beat 2.0: 雙手合奏 - 左手 A2 + 右手 E5
+            { pitch: 'E5/A2', chord: ['A2', 'E5'], midi: [45, 76], duration: 0.5, hand: 'both', measure: 2, beat: 2 },
+            // Beat 2.5: 右手 Bm 和弦切入 (B4-D5-F#5)，帶還原號 D♮
+            { pitch: 'Bm', chord: ['B4', 'D5', 'F#5'], midi: [71, 74, 78], accidentals: { 74: '♮' }, duration: 0.5, clef: 'treble', hand: 'right', tied: true, measure: 2, beat: 2.5 },
+            // Beat 3: 右手 Bm 延音
+            { pitch: 'Bm(延音)', chord: ['B4', 'D5', 'F#5'], midi: [71, 74, 78], duration: 1, clef: 'treble', hand: 'right', measure: 2, beat: 3 },
+            // Beat 4: 左手 A2 保持音
             { pitch: 'A2', midi: 45, duration: 1, clef: 'bass', hand: 'left', measure: 2, beat: 4, tenuto: true },
 
-            // Measure 3
-            { pitch: 'rest', isRest: true, duration: 1, clef: 'bass', hand: 'left', measure: 3, beat: 1 },
+            // ==================== Measure 3 ====================
+            // Beat 1: 右手高音 D 大調主和弦 (D5-F#5-A5，含高音加線 A5)
+            { pitch: 'D(高音)', chord: ['D5', 'F#5', 'A5'], midi: [74, 78, 81], duration: 1, clef: 'treble', hand: 'right', measure: 3, beat: 1 },
+            // Beat 2: 左手 A2 保持音
             { pitch: 'A2', midi: 45, duration: 1, clef: 'bass', hand: 'left', measure: 3, beat: 2, tenuto: true },
-            { pitch: 'rest', isRest: true, duration: 1, clef: 'bass', hand: 'left', measure: 3, beat: 3 },
+            // Beat 3: 右手 A 大調屬和弦 (A4-C#5-E5)
+            { pitch: 'A', chord: ['A4', 'C#5', 'E5'], midi: [69, 73, 76], duration: 1, clef: 'treble', hand: 'right', measure: 3, beat: 3 },
+            // Beat 4: 左手 A2 保持音
             { pitch: 'A2', midi: 45, duration: 1, clef: 'bass', hand: 'left', measure: 3, beat: 4, tenuto: true },
 
-            // Measure 4
-            { pitch: 'rest', isRest: true, duration: 1, clef: 'bass', hand: 'left', measure: 4, beat: 1 },
-            { pitch: 'A2', midi: 45, duration: 1, clef: 'bass', hand: 'left', measure: 4, beat: 2, tenuto: true },
-            { pitch: 'rest', isRest: true, duration: 1, clef: 'bass', hand: 'left', measure: 4, beat: 3 },
-            { pitch: 'A2', midi: 45, duration: 1, clef: 'bass', hand: 'left', measure: 4, beat: 4, tenuto: true }
+            // ==================== Measure 4 ====================
+            // Beat 1.0: 右手 Bm 和弦 (B4-D5-F#5)
+            { pitch: 'Bm', chord: ['B4', 'D5', 'F#5'], midi: [71, 74, 78], duration: 0.5, clef: 'treble', hand: 'right', measure: 4, beat: 1 },
+            // Beat 1.5: 右手旋律音 E5
+            { pitch: 'E5', midi: 76, duration: 0.5, clef: 'treble', hand: 'right', measure: 4, beat: 1.5 },
+            // Beat 2.0: 雙手合奏 - 左手 A2 + 右手 E5
+            { pitch: 'E5/A2', chord: ['A2', 'E5'], midi: [45, 76], duration: 0.5, hand: 'both', measure: 4, beat: 2 },
+            // Beat 2.5: 右手 Bm 和弦
+            { pitch: 'Bm', chord: ['B4', 'D5', 'F#5'], midi: [71, 74, 78], duration: 0.5, clef: 'treble', hand: 'right', measure: 4, beat: 2.5 },
+            // Beat 3: 雙手四分休止符
+            { pitch: 'rest', isRest: true, duration: 1, clef: 'treble', hand: 'both', measure: 4, beat: 3 },
+            // Beat 4: 雙手強音重音合奏 (Accent >) Bm + A2
+            { pitch: 'Bm/A2 >', chord: ['A2', 'B4', 'D5', 'F#5'], midi: [45, 71, 74, 78], duration: 1, accent: true, tied: true, hand: 'both', measure: 4, beat: 4 }
         ]
     },
     {

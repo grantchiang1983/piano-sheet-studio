@@ -58,6 +58,9 @@ class StaffRenderer {
     }
 
     midiToNoteInfo(midi) {
+        if (Array.isArray(midi)) {
+            midi = midi[0];
+        }
         if (!midi) {
             return { midi: 0, name: '', baseLetter: 'C', isSharp: false, octave: 4, solfege: '', number: '', diatonicStep: 0 };
         }
@@ -496,11 +499,6 @@ class StaffRenderer {
 
         song.notes.forEach((note, index) => {
             const x = headerWidth + index * noteSpacing;
-            const noteInfo = this.midiToNoteInfo(note.midi);
-            const clef = note.clef || (noteInfo.diatonicStep >= 0 ? 'treble' : 'bass');
-            const y = this.getYForDiatonicStep(noteInfo.diatonicStep, clef);
-            const isRightHand = note.hand === 'right';
-            const color = isRightHand ? '#4ade80' : '#60a5fa';
 
             // Draw Measure Bar
             if (note.measure && note.measure !== currentMeasure) {
@@ -525,36 +523,110 @@ class StaffRenderer {
                 return;
             }
 
-            // Ledger Lines
-            svg += this.calculateLedgerLines(noteInfo.diatonicStep, x, clef);
-
-            // Accidental
-            if (noteInfo.isSharp) {
-                svg += `<text x="${x - 14}" y="${y + 4}" font-size="14" font-weight="bold" fill="${color}">♯</text>`;
-            }
-
-            // Note Head
+            const midis = Array.isArray(note.midi) ? [...note.midi].sort((a, b) => a - b) : [note.midi];
             const isHollow = note.duration >= 2;
-            const fill = isHollow ? 'none' : color;
-            const stroke = color;
 
-            // Tenuto line (保持音短橫線)
+            let noteheadsSvg = '';
+            let ledgerLinesSvg = '';
+            let accidentalsSvg = '';
             let tenutoSvg = '';
-            if (note.tenuto) {
-                // In bass staff, Line 1 is y=214; place tenuto clearly below Line 1 (y=222) if note is near bottom of staff
-                const tenutoY = y > 130 ? Math.max(y + 12, 222) : Math.min(y - 12, 38);
-                tenutoSvg = `<line x1="${x - 7}" y1="${tenutoY}" x2="${x + 7}" y2="${tenutoY}" stroke="${color}" stroke-width="2.2" stroke-linecap="round"/>`;
-            }
+            let accentSvg = '';
+            let tiesSvg = '';
 
-            const labelY = y > 130 ? (note.tenuto ? 237 : y + 26) : (note.tenuto ? 24 : y - 22);
+            // Group midis by clef (treble vs bass)
+            const trebleMidis = midis.filter(m => m >= 60 || (note.clef === 'treble' && m >= 55));
+            const bassMidis = midis.filter(m => m < 60 && !(note.clef === 'treble' && m >= 55));
+
+            const groupsToRender = [];
+            if (trebleMidis.length > 0) groupsToRender.push({ clef: 'treble', midis: trebleMidis, color: '#4ade80' });
+            if (bassMidis.length > 0) groupsToRender.push({ clef: 'bass', midis: bassMidis, color: '#60a5fa' });
+
+            let primaryLabelY = 24;
+            let primaryLabel = note.label || note.pitch;
+
+            groupsToRender.forEach(grp => {
+                const grpColor = grp.color;
+                const fill = isHollow ? 'none' : grpColor;
+                const stroke = grpColor;
+                const noteYList = [];
+                const stepList = [];
+
+                grp.midis.forEach(m => {
+                    const info = this.midiToNoteInfo(m);
+                    const yPos = this.getYForDiatonicStep(info.diatonicStep, grp.clef);
+                    noteYList.push(yPos);
+                    stepList.push(info.diatonicStep);
+
+                    // Ledger lines
+                    ledgerLinesSvg += this.calculateLedgerLines(info.diatonicStep, x, grp.clef);
+
+                    // Accidentals
+                    let accChar = '';
+                    if (note.accidentals && note.accidentals[m]) {
+                        accChar = note.accidentals[m];
+                    } else if (note.showAccidental && info.isSharp) {
+                        accChar = '♯';
+                    }
+
+                    if (accChar) {
+                        accidentalsSvg += `<text x="${x - 14}" y="${yPos + 4}" font-size="14" font-weight="bold" fill="${grpColor}">${accChar}</text>`;
+                    }
+
+                    // Note Head
+                    noteheadsSvg += `<ellipse cx="${x}" cy="${yPos}" rx="6.5" ry="4.8" transform="rotate(-22 ${x} ${yPos})" fill="${fill}" stroke="${stroke}" stroke-width="${isHollow ? 2 : 1}"/>`;
+                });
+
+                // Stem for group
+                const minY = Math.min(...noteYList);
+                const maxY = Math.max(...noteYList);
+                const avgStep = stepList.reduce((a, b) => a + b, 0) / stepList.length;
+                let pointsUp = grp.clef === 'treble' ? (avgStep < 6) : (avgStep < -6);
+                const stemHeight = 32;
+
+                if (pointsUp) {
+                    const stemX = x + 6.5;
+                    noteheadsSvg += `<line x1="${stemX}" y1="${maxY}" x2="${stemX}" y2="${minY - stemHeight}" stroke="${grpColor}" stroke-width="1.6"/>`;
+                } else {
+                    const stemX = x - 6.5;
+                    noteheadsSvg += `<line x1="${stemX}" y1="${minY}" x2="${stemX}" y2="${maxY + stemHeight}" stroke="${grpColor}" stroke-width="1.6"/>`;
+                }
+
+                // Tenuto
+                if (note.tenuto && grp.clef === 'bass') {
+                    const tenutoY = Math.max(maxY + 12, 222);
+                    tenutoSvg += `<line x1="${x - 7}" y1="${tenutoY}" x2="${x + 7}" y2="${tenutoY}" stroke="${grpColor}" stroke-width="2.2" stroke-linecap="round"/>`;
+                }
+
+                // Accent
+                if (note.accent) {
+                    const accY = minY - (pointsUp ? stemHeight + 8 : 10);
+                    accentSvg += `<text x="${x}" y="${accY}" text-anchor="middle" font-size="18" font-weight="900" fill="#f59e0b">&gt;</text>`;
+                }
+
+                // Ties
+                if (note.tied) {
+                    noteYList.forEach(yPos => {
+                        tiesSvg += `<path d="M ${x + 6} ${yPos - 2} Q ${x + 18} ${yPos - 8} ${x + 30} ${yPos - 2}" fill="none" stroke="${grpColor}" stroke-width="1.5" stroke-dasharray="3,1"/>`;
+                    });
+                }
+
+                if (grp.clef === 'bass' && groupsToRender.length === 1) {
+                    primaryLabelY = note.tenuto ? 237 : maxY + 26;
+                } else if (grp.clef === 'treble') {
+                    primaryLabelY = Math.min(minY - 24, 28);
+                }
+            });
 
             svg += `
                 <g class="song-note-item" id="song-note-${index}" data-index="${index}" style="cursor: pointer;">
-                    <ellipse cx="${x}" cy="${y}" rx="6.5" ry="4.8" transform="rotate(-22 ${x} ${y})" fill="${fill}" stroke="${stroke}" stroke-width="${isHollow ? 2 : 1}"/>
-                    ${this.renderStem(noteInfo.diatonicStep, x, y, color)}
+                    ${ledgerLinesSvg}
+                    ${accidentalsSvg}
+                    ${noteheadsSvg}
                     ${tenutoSvg}
-                    <text x="${x}" y="${labelY}" text-anchor="middle" font-size="10" fill="#cbd5e1" class="note-name-label">
-                        ${noteInfo.name}
+                    ${accentSvg}
+                    ${tiesSvg}
+                    <text x="${x}" y="${primaryLabelY}" text-anchor="middle" font-size="10" font-weight="600" fill="#cbd5e1" class="note-name-label">
+                        ${primaryLabel}
                     </text>
                 </g>
             `;

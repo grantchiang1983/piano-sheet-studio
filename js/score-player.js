@@ -158,9 +158,12 @@ class ScorePlayer {
         }
 
         // Highlight and sound
-        const handColor = note.hand === 'left' ? 'left' : 'right';
-        this.piano.pressKey(note.midi, 0.85, true, handColor);
-        this.audio.noteOn(note.midi, 0.85);
+        const midis = Array.isArray(note.midi) ? note.midi : [note.midi];
+        midis.forEach(m => {
+            const handColor = m < 60 ? 'left' : (note.hand === 'left' ? 'left' : 'right');
+            this.piano.pressKey(m, 0.85, true, handColor);
+            this.audio.noteOn(m, 0.85);
+        });
         this.staff.setActiveSongNote(this.currentNoteIndex);
 
         this.onProgress(this.currentNoteIndex, this.currentSong.notes.length);
@@ -168,8 +171,10 @@ class ScorePlayer {
         // Schedule note release slightly before next note for articulation
         const holdTimeMs = Math.max(100, durationMs * 0.88);
         setTimeout(() => {
-            this.piano.releaseKey(note.midi);
-            this.audio.noteOff(note.midi);
+            midis.forEach(m => {
+                this.piano.releaseKey(m);
+                this.audio.noteOff(m);
+            });
         }, holdTimeMs);
 
         // Schedule next note
@@ -204,7 +209,10 @@ class ScorePlayer {
 
         this.staff.setActiveSongNote(this.currentNoteIndex);
         this.piano.clearKeyHints();
-        this.piano.highlightKeyHint(targetNote.midi, true);
+        const midis = Array.isArray(targetNote.midi) ? targetNote.midi : [targetNote.midi];
+        midis.forEach(m => {
+            this.piano.highlightKeyHint(m, true);
+        });
 
         this.onProgress(this.currentNoteIndex, this.currentSong.notes.length);
     }
@@ -221,7 +229,11 @@ class ScorePlayer {
 
         this.practiceStats.totalAttempts++;
 
-        if (playedMidi === targetNote.midi) {
+        const isMatch = Array.isArray(targetNote.midi)
+            ? targetNote.midi.includes(playedMidi)
+            : playedMidi === targetNote.midi;
+
+        if (isMatch) {
             // Correct note hit!
             this.practiceStats.correctAttempts++;
             this.practiceStats.streak++;
