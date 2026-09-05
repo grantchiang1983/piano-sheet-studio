@@ -196,13 +196,14 @@ class StaffRenderer {
         sortedNotes.forEach((midi, index) => {
             const noteInfo = this.midiToNoteInfo(midi);
             const x = startX + index * noteSpacing;
-            const y = this.getYForDiatonicStep(noteInfo.diatonicStep);
             const isTreble = noteInfo.diatonicStep >= 0; // C4 and above mapped primarily to treble
+            const clef = isTreble ? 'treble' : 'bass';
+            const y = this.getYForDiatonicStep(noteInfo.diatonicStep, clef);
             const colorClass = isTreble ? 'note-treble' : 'note-bass';
             const color = isTreble ? '#4ade80' : '#60a5fa';
 
             // Ledger Lines (加線)
-            const ledgerLines = this.calculateLedgerLines(noteInfo.diatonicStep, x);
+            const ledgerLines = this.calculateLedgerLines(noteInfo.diatonicStep, x, clef);
             notesHtml += ledgerLines;
 
             // Accidental (♯)
@@ -237,45 +238,70 @@ class StaffRenderer {
     /**
      * Get SVG Y coordinate for a given diatonic step from C4
      * C4 diatonic step = 0
-     * Treble Staff lines: E4 (step 2) to F5 (step 10)
-     * Treble line 5 (F5) = 46px
-     * Bass line 1 (G2) = step -10. Bass line 5 (A3) = step -2 = 166px
+     * Treble Staff lines (y = 46 to 94):
+     *   Line 5 (F5, step 10) = 46px
+     *   Line 1 (E4, step 2) = 94px
+     *   Middle C (C4, step 0, ledger line below treble) = 106px
+     *
+     * Bass Staff lines (y = 166 to 214):
+     *   Line 5 (A3, step -2) = 166px
+     *   Line 4 (F3, step -4) = 178px
+     *   Line 3 (D3, step -6) = 190px
+     *   Line 2 (B2, step -8) = 202px (Exact position of B2 on 2nd line!)
+     *   Line 1 (G2, step -10) = 214px
+     *   Middle C (C4, step 0, ledger line above bass) = 154px
      */
-    getYForDiatonicStep(step) {
-        // Reference point: C4 (step 0)
-        // Middle C Y is 106px
-        const middleCY = 106;
-        return middleCY - (step * this.stepY);
+    getYForDiatonicStep(step, clef = null) {
+        const isBass = (clef === 'bass') || (clef === null && step < 0);
+        if (isBass) {
+            // Bass line 5 (A3, step -2) = 166px
+            return 166 - ((step - (-2)) * this.stepY);
+        } else {
+            // Treble line 1 (E4, step 2) = 94px
+            return 94 - ((step - 2) * this.stepY);
+        }
     }
 
     /**
-     * Generate ledger lines if note falls outside 5 standard lines
+     * Generate ledger lines if note falls outside standard 5 staff lines
      */
-    calculateLedgerLines(step, noteX) {
+    calculateLedgerLines(step, noteX, clef = null) {
         let linesHtml = '';
         const halfWidth = 14;
+        const isBass = (clef === 'bass') || (clef === null && step < 0);
 
-        // Treble staff lines are steps 2 (E4), 4 (G4), 6 (B4), 8 (D5), 10 (F5)
-        // Middle C is step 0: needs ledger line at step 0
-        if (step === 0) {
-            const y = this.getYForDiatonicStep(0);
-            linesHtml += `<line x1="${noteX - halfWidth}" y1="${y}" x2="${noteX + halfWidth}" y2="${y}" stroke="#f8fafc" stroke-width="1.6"/>`;
-        }
-
-        // Treble upper ledger lines: step >= 12 (A5 and above)
-        if (step >= 12) {
-            for (let s = 12; s <= step; s += 2) {
-                const y = this.getYForDiatonicStep(s);
-                linesHtml += `<line x1="${noteX - halfWidth}" y1="${y}" x2="${noteX + halfWidth}" y2="${y}" stroke="#f8fafc" stroke-width="1.6"/>`;
+        if (!isBass) {
+            // Treble staff lines are steps 2 (E4) to 10 (F5)
+            // Middle C is step 0: needs ledger line at step 0 (106px)
+            if (step <= 0) {
+                for (let s = 0; s >= step; s -= 2) {
+                    const y = this.getYForDiatonicStep(s, 'treble');
+                    linesHtml += `<line x1="${noteX - halfWidth}" y1="${y}" x2="${noteX + halfWidth}" y2="${y}" stroke="#f8fafc" stroke-width="1.6"/>`;
+                }
             }
-        }
-
-        // Bass staff lines are steps -10 (G2), -8 (B2), -6 (D3), -4 (F3), -2 (A3)
-        // Bass lower ledger lines: step <= -12 (E2 and below)
-        if (step <= -12) {
-            for (let s = -12; s >= step; s -= 2) {
-                const y = this.getYForDiatonicStep(s);
-                linesHtml += `<line x1="${noteX - halfWidth}" y1="${y}" x2="${noteX + halfWidth}" y2="${y}" stroke="#f8fafc" stroke-width="1.6"/>`;
+            // Treble upper ledger lines: step >= 12 (A5 and above)
+            if (step >= 12) {
+                for (let s = 12; s <= step; s += 2) {
+                    const y = this.getYForDiatonicStep(s, 'treble');
+                    linesHtml += `<line x1="${noteX - halfWidth}" y1="${y}" x2="${noteX + halfWidth}" y2="${y}" stroke="#f8fafc" stroke-width="1.6"/>`;
+                }
+            }
+        } else {
+            // Bass staff lines are steps -10 (G2) to -2 (A3)
+            // Note: B2 is step -8 (Line 2), which is completely inside the 5 lines!
+            // Middle C on bass staff is step 0: needs ledger line at step 0 (154px)
+            if (step >= 0) {
+                for (let s = 0; s <= step; s += 2) {
+                    const y = this.getYForDiatonicStep(s, 'bass');
+                    linesHtml += `<line x1="${noteX - halfWidth}" y1="${y}" x2="${noteX + halfWidth}" y2="${y}" stroke="#f8fafc" stroke-width="1.6"/>`;
+                }
+            }
+            // Bass lower ledger lines: step <= -12 (E2 and below)
+            if (step <= -12) {
+                for (let s = -12; s >= step; s -= 2) {
+                    const y = this.getYForDiatonicStep(s, 'bass');
+                    linesHtml += `<line x1="${noteX - halfWidth}" y1="${y}" x2="${noteX + halfWidth}" y2="${y}" stroke="#f8fafc" stroke-width="1.6"/>`;
+                }
             }
         }
 
@@ -369,7 +395,8 @@ class StaffRenderer {
         song.notes.forEach((note, index) => {
             const x = headerWidth + index * noteSpacing;
             const noteInfo = this.midiToNoteInfo(note.midi);
-            const y = this.getYForDiatonicStep(noteInfo.diatonicStep);
+            const clef = note.clef || (noteInfo.diatonicStep >= 0 ? 'treble' : 'bass');
+            const y = this.getYForDiatonicStep(noteInfo.diatonicStep, clef);
             const isRightHand = note.hand === 'right';
             const color = isRightHand ? '#4ade80' : '#60a5fa';
 
@@ -397,7 +424,7 @@ class StaffRenderer {
             }
 
             // Ledger Lines
-            svg += this.calculateLedgerLines(noteInfo.diatonicStep, x);
+            svg += this.calculateLedgerLines(noteInfo.diatonicStep, x, clef);
 
             // Accidental
             if (noteInfo.isSharp) {
