@@ -1,0 +1,211 @@
+/* Piano Sheet Studio - Realistic 3D Piano Keyboard Styling */
+
+#piano-container {
+    width: 100%;
+    overflow-x: auto;
+    padding: 10px 0 20px 0;
+    scrollbar-width: thin;
+    scrollbar-color: #334155 #0f172a;
+}
+
+#piano-container::-webkit-scrollbar {
+    height: 8px;
+}
+
+#piano-container::-webkit-scrollbar-track {
+    background: #0f172a;
+    border-radius: 4px;
+}
+
+#piano-container::-webkit-scrollbar-thumb {
+    background: #334155;
+    border-radius: 4px;
+}
+
+#piano-container::-webkit-scrollbar-thumb:hover {
+    background: #475569;
+}
+
+.piano-keyboard-wrapper {
+    display: flex;
+    position: relative;
+    margin: 0 auto;
+    background: #111827;
+    padding: 12px 14px 18px 14px;
+    border-radius: 8px;
+    box-shadow: inset 0 6px 14px rgba(0, 0, 0, 0.8), 0 8px 24px rgba(0, 0, 0, 0.6);
+    border-top: 6px solid #2b1704; /* Mahogany piano wood frame */
+    border-bottom: 4px solid #18181b;
+    width: max-content;
+}
+
+/* Base Key Styling */
+.piano-key {
+    position: relative;
+    cursor: pointer;
+    user-select: none;
+    transition: transform 0.05s ease, background 0.08s ease, box-shadow 0.08s ease;
+}
+
+/* White Keys (Ivory Look) */
+.white-key {
+    width: 44px;
+    height: 190px;
+    background: linear-gradient(180deg, #fdfdfd 0%, #f4f4f4 85%, #e2e2e2 100%);
+    border: 1px solid #94a3b8;
+    border-top: none;
+    border-radius: 0 0 5px 5px;
+    box-shadow: -1px 0 0 rgba(255, 255, 255, 0.8) inset, 0 0 3px rgba(0, 0, 0, 0.2), inset 0 -4px 0 #cbd5e1;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: center;
+    padding-bottom: 10px;
+}
+
+.white-key:hover {
+    background: linear-gradient(180deg, #ffffff 0%, #f9f9f9 85%, #ebebeb 100%);
+}
+
+/* White Key Pressed State */
+.white-key.pressed {
+    transform: translateY(3px);
+    background: linear-gradient(180deg, #e2e8f0 0%, #cbd5e1 100%);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.white-key.pressed-right-hand {
+    background: linear-gradient(180deg, #86efac 0%, #4ade80 100%) !important;
+    box-shadow: inset 0 0 12px #22c55e, 0 0 14px rgba(74, 222, 128, 0.6) !important;
+}
+
+.white-key.pressed-left-hand {
+    background: linear-gradient(180deg, #93c5fd 0%, #60a5fa 100%) !important;
+    box-shadow: inset 0 0 12px #3b82f6, 0 0 14px rgba(96, 165, 250, 0.6) !important;
+}
+
+/* Black Keys (Polished Ebony) */
+.black-key {
+    width: 26px;
+    height: 122px;
+    background: linear-gradient(180deg, #334155 0%, #1e293b 40%, #0f172a 100%);
+    border: 1px solid #020617;
+    border-radius: 0 0 3px 3px;
+    margin-left: -13px;
+    margin-right: -13px;
+    z-index: 2;
+    box-shadow: -1px -1px 2px rgba(255, 255, 255, 0.15) inset, 2px 3px 5px rgba(0, 0, 0, 0.65);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: center;
+    padding-bottom: 8px;
+}
+
+.black-key:hover {
+    background: linear-gradient(180deg, #475569 0%, #1e293b 50%, #020617 100%);
+}
+
+/* Black Key Pressed State */
+.black-key.pressed {
+    transform: translateY(3px);
+    background: linear-gradient(180deg, #0f172a 0%, #020617 100%);
+    box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.black-key.pressed-right-hand {
+    background: linear-gradient(180deg, #16a34a 0%, #15803d 100%) !important;
+    box-shadow: 0 0 12px rgba(74, 222, 128, 0.8) !important;
+}
+
+.black-key.pressed-left-hand {
+    background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%) !important;
+    box-shadow: 0 0 12px rgba(96, 165, 250, 0.8) !important;
+}
+
+/* Middle C Special Marker */
+.piano-key.middle-c .middle-c-indicator {
+    width: 7px;
+    height: 7px;
+    background: #f59e0b;
+    border-radius: 50%;
+    margin-bottom: 6px;
+    box-shadow: 0 0 6px #f59e0b;
+}
+
+/* Practice Target Highlight */
+.piano-key.practice-target {
+    animation: targetPulse 0.9s infinite alternate ease-in-out;
+}
+
+@keyframes targetPulse {
+    0% {
+        box-shadow: 0 0 6px #f59e0b, inset 0 0 8px #fbbf24;
+    }
+    100% {
+        box-shadow: 0 0 18px #f59e0b, inset 0 0 16px #f59e0b;
+        transform: translateY(2px);
+    }
+}
+
+/* Labels on Keys */
+.key-label {
+    font-size: 11px;
+    font-weight: 700;
+    pointer-events: none;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    line-height: 1.1;
+}
+
+.white-key .key-label {
+    color: #475569;
+}
+
+.black-key .key-label {
+    color: #cbd5e1;
+    font-size: 10px;
+}
+
+.primary-lbl {
+    font-size: 12px;
+}
+
+.sub-lbl {
+    font-size: 9px;
+    opacity: 0.8;
+}
+
+.kbd-badge {
+    background: #334155;
+    color: #f8fafc;
+    border-radius: 3px;
+    padding: 1px 4px;
+    font-size: 10px;
+}
+
+.white-key .kbd-badge {
+    background: #e2e8f0;
+    color: #0f172a;
+    border: 1px solid #94a3b8;
+}
+
+/* Range-specific Scaling for 88 keys */
+.range-88 .white-key {
+    width: 32px;
+    height: 175px;
+}
+
+.range-88 .black-key {
+    width: 18px;
+    height: 110px;
+    margin-left: -9px;
+    margin-right: -9px;
+}
+
+.range-88 .key-label {
+    font-size: 9px;
+}

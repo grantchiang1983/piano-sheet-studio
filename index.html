@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Piano Sheet Studio - 音樂鋼琴五線譜互動系統</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/piano.css">
+    <link rel="stylesheet" href="css/staff.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22%20width=%22100%22%20height=%22100%22><text y=%22.9em%22 font-size=%2290%22>🎹</text></svg>">
+</head>
+<body>
+
+    <!-- Header Navigation -->
+    <header class="studio-header">
+        <div class="brand">
+            <div class="brand-icon">🎹</div>
+            <div>
+                <h1>Piano Sheet Studio</h1>
+                <div class="subtitle">音樂鋼琴五線譜互動系統 · GRAND STAFF VISUALIZER</div>
+            </div>
+        </div>
+
+        <div class="header-controls">
+            <!-- MIDI Status Badge -->
+            <div id="midi-status-badge" class="status-badge badge-disconnected" title="檢測 USB MIDI 鍵盤連線">
+                <span>🔌 檢測 MIDI 裝置中...</span>
+            </div>
+
+            <!-- Sound Preset Selector -->
+            <div class="control-group">
+                <label for="sound-preset">鋼琴音色:</label>
+                <select id="sound-preset">
+                    <option value="grand" selected>三角演奏鋼琴 (Concert Grand)</option>
+                    <option value="warm">溫暖直立鋼琴 (Warm Upright)</option>
+                    <option value="bright">明亮錄音室鋼琴 (Bright Studio)</option>
+                    <option value="musicbox">夢幻音樂盒 (Music Box)</option>
+                </select>
+            </div>
+
+            <!-- Volume Control -->
+            <div class="volume-wrapper control-group">
+                <span>🔊</span>
+                <input type="range" id="volume-slider" min="0" max="1" step="0.05" value="0.8">
+                <span id="vol-display" class="vol-text">80%</span>
+            </div>
+
+            <!-- Help Button -->
+            <button id="open-guide-btn" class="btn-icon" title="檢視鍵盤快捷鍵與使用說明">
+                <span>❓ 使用說明</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="studio-main">
+
+        <!-- Mode Selection Tabs -->
+        <div class="mode-tabs">
+            <div class="tabs-left">
+                <button id="mode-score-btn" class="mode-tab-btn active">
+                    <span>🎼 樂譜播放示範</span>
+                </button>
+                <button id="mode-practice-btn" class="mode-tab-btn">
+                    <span>🎯 互動跟彈練習</span>
+                </button>
+                <button id="mode-free-btn" class="mode-tab-btn">
+                    <span>🎹 自由彈奏識譜</span>
+                </button>
+            </div>
+
+            <div class="tabs-right">
+                <button id="record-btn" class="btn-record" title="錄製彈奏並自動產生五線譜">
+                    <span>● 錄製彈奏</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Practice Feedback Banner (Shown in Practice Mode) -->
+        <div id="practice-stats-banner" class="practice-banner hidden">
+            <div class="practice-instruction">
+                <span id="practice-hint-text">請看著五線譜，在鍵盤上按下黃色高亮的目標音符！</span>
+            </div>
+            <div class="streak-counter">
+                <span>連擊數: </span>
+                <span id="practice-streak-val">0 連擊 🔥</span>
+            </div>
+        </div>
+
+        <!-- Grand Staff & Music Analysis Section -->
+        <section class="staff-section">
+            <div class="staff-info-header">
+                <!-- Real-time Chord Analyzer -->
+                <div class="chord-analyzer">
+                    <span class="analyzer-label">即時和弦辨識:</span>
+                    <span id="detected-chord-name" class="detected-chord-badge">—</span>
+                    <span id="detected-chord-details" class="detected-chord-details">等待彈奏音符...</span>
+                </div>
+
+                <!-- Clef Legend -->
+                <div class="clef-legend">
+                    <div class="legend-item">
+                        <span class="dot-treble"></span>
+                        <span>高音譜表 / 右手旋律 (C4 ~)</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="dot-bass"></span>
+                        <span>低音譜表 / 左手伴奏 (~ B3)</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Grand Staff SVG Container -->
+            <div id="staff-container"></div>
+        </section>
+
+        <!-- Song Player Controls Bar -->
+        <section id="song-controls-bar" class="song-controls-bar">
+            <!-- Song Selection -->
+            <div class="song-select-group">
+                <div style="width: 100%;">
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <span style="font-size: 13px; color: var(--text-muted); white-space: nowrap;">選曲:</span>
+                        <select id="song-select"></select>
+                    </div>
+                    <div id="song-desc" class="song-desc-text">莫札特經典變奏曲主題，左右手協同演奏，非常適合初學五線譜識譜練習。</div>
+                </div>
+            </div>
+
+            <!-- Play / Pause / Stop -->
+            <div class="player-buttons">
+                <button id="play-btn" class="btn-play">▶ 播放示範</button>
+                <button id="pause-btn" class="btn-pause hidden">⏸ 暫停</button>
+                <button id="stop-btn" class="btn-stop">⏹ 重頭停止</button>
+            </div>
+
+            <!-- Tempo / BPM Controls -->
+            <div class="tempo-controls">
+                <div class="tempo-slider-wrap">
+                    <span style="font-size: 13px; color: var(--text-muted);">速度:</span>
+                    <input type="range" id="bpm-slider" min="40" max="200" step="2" value="100">
+                    <span id="bpm-val" style="font-size: 13px; font-weight: bold; min-width: 65px;">100 BPM</span>
+                </div>
+                <div class="tempo-presets">
+                    <button class="tempo-preset-btn" data-mult="0.75">慢速 0.75x</button>
+                    <button class="tempo-preset-btn" data-mult="1.0">原速 1.0x</button>
+                    <button class="tempo-preset-btn" data-mult="1.25">快速 1.25x</button>
+                </div>
+            </div>
+
+            <!-- Metronome -->
+            <div class="metronome-box">
+                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                    <input type="checkbox" id="metronome-toggle" checked>
+                    <span>節拍器</span>
+                </label>
+                <div id="metronome-led" class="metronome-led" title="節拍器拍點閃爍"></div>
+            </div>
+        </section>
+
+        <!-- Virtual Piano Keyboard Section -->
+        <section class="piano-section">
+            <div class="piano-toolbar">
+                <div class="piano-tools-left">
+                    <!-- Key Range Selector -->
+                    <div class="control-group">
+                        <label for="key-range-select">琴鍵範圍:</label>
+                        <select id="key-range-select">
+                            <option value="37">37 鍵 (C3 - C6)</option>
+                            <option value="49">49 鍵 (C2 - C6)</option>
+                            <option value="61" selected>61 鍵 (C2 - C7 標準)</option>
+                            <option value="88">88 鍵 (A0 - C8 全音域)</option>
+                        </select>
+                    </div>
+
+                    <!-- Key Labels Selector -->
+                    <div class="control-group">
+                        <label for="key-label-select">琴鍵標記:</label>
+                        <select id="key-label-select">
+                            <option value="note" selected>音名 (C4, D4...)</option>
+                            <option value="solfege">唱名 (Do, Re, Mi...)</option>
+                            <option value="number">簡譜數字 (1, 2, 3...)</option>
+                            <option value="keyboard">電腦按鍵 (Q, W, E...)</option>
+                            <option value="none">無標記 (純淨)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="piano-tools-right">
+                    <!-- Sustain Pedal Button -->
+                    <button id="sustain-pedal-btn" class="btn-pedal" title="開啟延音踏板效果，亦可按住電腦鍵盤 [空白鍵]">
+                        <span>踏板 [空白鍵]</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Piano Keys Container -->
+            <div id="piano-container"></div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="studio-footer">
+        <p>💡 提示：按住電腦鍵盤 <strong>空白鍵</strong> 啟用延音踏板 · 支援滑鼠滑奏 (Glissando) 與 USB 電子琴隨插即彈</p>
+    </footer>
+
+    <!-- Keyboard Shortcuts & Tutorial Modal -->
+    <div id="guide-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2>📖 Piano Sheet Studio 使用導引</h2>
+                <button id="close-guide-btn" class="btn-close">✕</button>
+            </div>
+            <div class="modal-body">
+                <h3>🎹 電腦鍵盤按鍵彈奏對照</h3>
+                <p>無需滑鼠，可直接用打字鍵盤彈奏雙八度音域：</p>
+                <table class="shortcut-table">
+                    <thead>
+                        <tr>
+                            <th>音域</th>
+                            <th>白鍵 (天然音)</th>
+                            <th>黑鍵 (升降音)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>低音八度 (C3 ~ B3)</strong></td>
+                            <td><kbd>Z</kbd> <kbd>X</kbd> <kbd>C</kbd> <kbd>V</kbd> <kbd>B</kbd> <kbd>N</kbd> <kbd>M</kbd></td>
+                            <td><kbd>S</kbd> <kbd>D</kbd> <kbd>G</kbd> <kbd>H</kbd> <kbd>J</kbd></td>
+                        </tr>
+                        <tr>
+                            <td><strong>中音八度 (C4 ~ B4, 中央C)</strong></td>
+                            <td><kbd>Q</kbd> <kbd>W</kbd> <kbd>E</kbd> <kbd>R</kbd> <kbd>T</kbd> <kbd>Y</kbd> <kbd>U</kbd></td>
+                            <td><kbd>2</kbd> <kbd>3</kbd> <kbd>5</kbd> <kbd>6</kbd> <kbd>7</kbd></td>
+                        </tr>
+                        <tr>
+                            <td><strong>高音八度 (C5 ~ G5)</strong></td>
+                            <td><kbd>I</kbd> <kbd>O</kbd> <kbd>P</kbd> <kbd>[</kbd> <kbd>]</kbd></td>
+                            <td><kbd>9</kbd> <kbd>0</kbd> <kbd>=</kbd></td>
+                        </tr>
+                        <tr>
+                            <td><strong>延音踏板 (Sustain)</strong></td>
+                            <td colspan="2"><kbd>空白鍵 (Space)</kbd> 按住保持琴弦延音，放開阻尼制音</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3 style="margin-top: 12px;">🎼 核心功能說明</h3>
+                <ul style="padding-left: 20px; display: flex; flex-direction: column; gap: 8px;">
+                    <li><strong>自由彈奏識譜</strong>：彈奏任何鍵，大譜表立即精準畫出音符位置與加線，並顯示音名、唱名、簡譜與即時和弦判定。</li>
+                    <li><strong>樂譜示範播放</strong>：選取經典曲目，一鍵自動播放，游標與琴鍵雙向同步跑動，並可調節速度與節拍器。</li>
+                    <li><strong>互動跟彈練習</strong>：系統停在當前音符等待您按下正確琴鍵，彈對即推進下一音，鍛鍊五線譜看譜反應速度。</li>
+                    <li><strong>實體 MIDI 電子琴支援</strong>：用 USB 連接電子琴/電鋼琴，瀏覽器自動偵測，隨插即彈！</li>
+                    <li><strong>自創曲錄製</strong>：點擊「● 錄製彈奏」錄下即興旋律，停止後自動轉為專屬五線譜！</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Scripts -->
+    <script src="js/audio-engine.js"></script>
+    <script src="js/songs-database.js"></script>
+    <script src="js/staff-renderer.js"></script>
+    <script src="js/piano-view.js"></script>
+    <script src="js/score-player.js"></script>
+    <script src="js/midi-controller.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
