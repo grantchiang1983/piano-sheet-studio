@@ -74,6 +74,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // 6. Initialize Score Editor
     const editor = new ScoreEditor(audio, piano, staff, player);
     window.appEditor = editor;
+    window.appStaff = staff;
+    window.appPlayer = player;
+    window.switchMode = switchMode;
 
     // Recording State
     let isRecording = false;
@@ -446,12 +449,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 150);
     });
 
-    // Default mode: Score View (supports URL parameter ?mode=editor&select=2)
+    // Default mode: Score View (supports URL parameter ?mode=editor&select=2&voice=treble)
     const urlParams = new URLSearchParams(window.location.search);
     const initialMode = urlParams.get('mode') || 'score';
     switchMode(initialMode);
     if (initialMode === 'editor') {
         const selIdx = parseInt(urlParams.get('select') || '0', 10);
-        setTimeout(() => editor.selectNote(selIdx), 60);
+        const selVoice = urlParams.get('voice') || 'treble';
+        setTimeout(() => editor.selectNote(selIdx, selVoice), 60);
     }
 });

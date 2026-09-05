@@ -15,6 +15,10 @@ class ScoreEditor {
         this.isChordMode = false;
         this.isActive = false;
 
+        // Voice Editing State
+        this.activeVoice = 'auto'; // 'auto' | 'treble' | 'bass'
+        this.selectedVoice = 'treble'; // 'treble' | 'bass'
+
         // Custom scores storage key
         this.STORAGE_KEY = 'piano_sheet_custom_scores_v1';
 
@@ -28,12 +32,27 @@ class ScoreEditor {
     }
 
     bindEvents() {
-        // Staff note click listener
-        this.staff.onNoteClick = (index) => {
+        // Staff note click listener with voice support
+        this.staff.onNoteClick = (index, clickedVoice) => {
             if (this.isActive) {
-                this.selectNote(index);
+                let targetVoice = clickedVoice || 'treble';
+                if (this.activeVoice === 'treble') targetVoice = 'treble';
+                else if (this.activeVoice === 'bass') targetVoice = 'bass';
+                this.selectNote(index, targetVoice);
             }
         };
+
+        // Voice Focus Track Buttons
+        const autoVoiceBtn = document.getElementById('editor-voice-auto-btn');
+        const trebleVoiceBtn = document.getElementById('editor-voice-treble-btn');
+        const bassVoiceBtn = document.getElementById('editor-voice-bass-btn');
+        if (autoVoiceBtn) autoVoiceBtn.addEventListener('click', () => this.setVoiceFocus('auto'));
+        if (trebleVoiceBtn) trebleVoiceBtn.addEventListener('click', () => this.setVoiceFocus('treble'));
+        if (bassVoiceBtn) bassVoiceBtn.addEventListener('click', () => this.setVoiceFocus('bass'));
+
+        // Add Opposite Voice Button
+        const addOppVoiceBtn = document.getElementById('editor-add-opposite-voice-btn');
+        if (addOppVoiceBtn) addOppVoiceBtn.addEventListener('click', () => this.addOppositeVoiceNote());
 
         // Duration Buttons
         document.querySelectorAll('.editor-duration-btn').forEach(btn => {
@@ -252,9 +271,9 @@ class ScoreEditor {
     }
 
     /**
-     * Selects a note by index and updates UI
+     * Selects a note by index and voice, updating UI
      */
-    selectNote(index) {
+    selectNote(index, voice = null) {
         if (!this.currentSong || !this.currentSong.notes || this.currentSong.notes.length === 0) {
             this.selectedIndex = -1;
             this.updateNoteInfoBadge();
@@ -264,8 +283,26 @@ class ScoreEditor {
         this.selectedIndex = Math.max(0, Math.min(this.currentSong.notes.length - 1, index));
         const note = this.currentSong.notes[this.selectedIndex];
 
+        // Determine which voice should be focused
+        if (this.activeVoice === 'treble') {
+            this.selectedVoice = 'treble';
+        } else if (this.activeVoice === 'bass') {
+            this.selectedVoice = 'bass';
+        } else if (voice === 'treble' || voice === 'bass') {
+            this.selectedVoice = voice;
+        } else {
+            const { treble, bass } = this.getVoiceMidis(note);
+            if (treble.length > 0 && bass.length === 0) {
+                this.selectedVoice = 'treble';
+            } else if (bass.length > 0 && treble.length === 0) {
+                this.selectedVoice = 'bass';
+            } else {
+                this.selectedVoice = this.selectedVoice || 'treble';
+            }
+        }
+
         // Notify staff renderer to highlight
-        this.staff.setEditorSelectedNote(this.selectedIndex);
+        this.staff.setEditorSelectedNote(this.selectedIndex, this.selectedVoice);
 
         // Auditory preview & highlight keys on virtual piano
         this.previewNote(note);
@@ -274,11 +311,124 @@ class ScoreEditor {
         this.updateToolbarForNote(note);
     }
 
+    setVoiceFocus(mode) {
+        this.activeVoice = mode; // 'auto', 'treble', 'bass'
+        if (mode === 'treble' || mode === 'bass') {
+            this.selectedVoice = mode;
+        }
+        this.updateVoiceFocusButtons();
+        if (this.selectedIndex >= 0) {
+            this.selectNote(this.selectedIndex, this.selectedVoice);
+        }
+    }
+
+    updateVoiceFocusButtons() {
+        const autoBtn = document.getElementById('editor-voice-auto-btn');
+        const trebleBtn = document.getElementById('editor-voice-treble-btn');
+        const bassBtn = document.getElementById('editor-voice-bass-btn');
+        if (autoBtn) autoBtn.classList.toggle('active', this.activeVoice === 'auto');
+        if (trebleBtn) trebleBtn.classList.toggle('active', this.activeVoice === 'treble');
+        if (bassBtn) bassBtn.classList.toggle('active', this.activeVoice === 'bass');
+
+        const oppBtn = document.getElementById('editor-add-opposite-voice-btn');
+        if (oppBtn) {
+            oppBtn.textContent = this.selectedVoice === 'treble' ? '➕ 添左音 (低音部)' : '➕ 添右音 (高音部)';
+            oppBtn.title = this.selectedVoice === 'treble' 
+                ? '在當前拍添加左手低音伴奏音' 
+                : '在當前拍添加右手旋律/和弦音';
+        }
+    }
+
+    getVoiceMidis(note) {
+        if (!note || note.isRest || !note.midi) {
+            return { treble: [], bass: [] };
+        }
+        const midis = Array.isArray(note.midi) ? [...note.midi] : [note.midi];
+        const treble = midis.filter(m => m >= 60 || (note.clef === 'treble' && m >= 55));
+        const bass = midis.filter(m => m < 60 && !(note.clef === 'treble' && m >= 55));
+        return { treble, bass };
+    }
+
+    applyVoiceMidisToNote(note, trebleMidis, bassMidis) {
+        trebleMidis = [...trebleMidis].sort((a, b) => a - b);
+        bassMidis = [...bassMidis].sort((a, b) => a - b);
+        const allMidis = [...bassMidis, ...trebleMidis].sort((a, b) => a - b);
+
+        note.isRest = false;
+
+        if (allMidis.length === 0) {
+            note.isRest = true;
+            note.midi = null;
+            note.chord = null;
+            note.pitch = 'rest';
+            return;
+        }
+
+        if (allMidis.length === 1) {
+            note.midi = allMidis[0];
+            note.chord = null;
+            note.pitch = this.staff.midiToNoteInfo(allMidis[0]).name;
+            note.clef = (trebleMidis.length > 0) ? 'treble' : 'bass';
+            note.hand = (trebleMidis.length > 0) ? 'right' : 'left';
+        } else {
+            note.midi = allMidis;
+            note.chord = allMidis.map(m => this.staff.midiToNoteInfo(m).name);
+            if (trebleMidis.length > 0 && bassMidis.length > 0) {
+                note.hand = 'both';
+                note.clef = 'both';
+                const trebleName = trebleMidis.length === 1 
+                    ? this.staff.midiToNoteInfo(trebleMidis[0]).name 
+                    : this.analyzeChordName(trebleMidis);
+                const bassName = bassMidis.length === 1 
+                    ? this.staff.midiToNoteInfo(bassMidis[0]).name 
+                    : this.analyzeChordName(bassMidis);
+                note.pitch = `${trebleName}/${bassName}`;
+            } else if (trebleMidis.length > 0) {
+                note.hand = 'right';
+                note.clef = 'treble';
+                note.pitch = this.analyzeChordName(trebleMidis);
+            } else {
+                note.hand = 'left';
+                note.clef = 'bass';
+                note.pitch = this.analyzeChordName(bassMidis);
+            }
+        }
+    }
+
+    addOppositeVoiceNote() {
+        if (!this.isActive || this.selectedIndex < 0 || !this.currentSong) return;
+        const note = this.currentSong.notes[this.selectedIndex];
+        if (!note) return;
+
+        const { treble, bass } = this.getVoiceMidis(note);
+        let newTreble = [...treble];
+        let newBass = [...bass];
+
+        if (this.selectedVoice === 'treble') {
+            if (newBass.length === 0) {
+                const defaultBass = (this.currentSong.key === 'D' || this.currentSong.key === 'Bm') ? 45 : 48;
+                newBass = [defaultBass];
+            }
+            this.selectedVoice = 'bass';
+        } else {
+            if (newTreble.length === 0) {
+                const defaultTreble = (this.currentSong.key === 'D' || this.currentSong.key === 'Bm') ? 74 : 72;
+                newTreble = [defaultTreble];
+            }
+            this.selectedVoice = 'treble';
+        }
+
+        this.applyVoiceMidisToNote(note, newTreble, newBass);
+        this.staff.render();
+        this.selectNote(this.selectedIndex, this.selectedVoice);
+        this.notifyChange();
+    }
+
     navigateNote(direction) {
         if (!this.currentSong) return;
         const newIdx = this.selectedIndex + direction;
         if (newIdx >= 0 && newIdx < this.currentSong.notes.length) {
-            this.selectNote(newIdx);
+            this.selectNote(newIdx, this.selectedVoice);
         }
     }
 
@@ -293,8 +443,11 @@ class ScoreEditor {
 
         this.piano.releaseAllNotes();
         const midis = Array.isArray(note.midi) ? note.midi : [note.midi];
+        const { treble, bass } = this.getVoiceMidis(note);
+
         midis.forEach(m => {
-            const handColor = m < 60 ? 'left' : (note.hand === 'left' ? 'left' : 'right');
+            const isTreble = treble.includes(m);
+            const handColor = isTreble ? 'right' : 'left';
             this.piano.pressKey(m, 0.85, true, handColor);
             this.audio.noteOn(m, 0.85);
         });
@@ -344,10 +497,15 @@ class ScoreEditor {
 
     updateNoteInfoBadge() {
         const badge = document.getElementById('editor-note-info-text');
+        const voiceBadge = document.getElementById('editor-voice-badge');
         if (!badge) return;
 
         if (!this.currentSong || this.selectedIndex < 0 || !this.currentSong.notes[this.selectedIndex]) {
             badge.textContent = '未選取音符 (請點擊五線譜上的任一音符)';
+            if (voiceBadge) {
+                voiceBadge.textContent = '未選取';
+                voiceBadge.className = 'editor-badge';
+            }
             return;
         }
 
@@ -355,21 +513,43 @@ class ScoreEditor {
         const total = this.currentSong.notes.length;
         const durMap = { 4: '全音符 (4拍)', 2: '二分音符 (2拍)', 1: '四分音符 (1拍)', 0.5: '八分音符 (半拍)', 0.25: '十六分音符 (1/4拍)' };
         const durText = durMap[note.duration] || `${note.duration} 拍`;
-        const clefText = note.clef === 'bass' ? '𝄢 低音譜' : '𝄞 高音譜';
 
-        let pitchText = '';
-        if (note.isRest || !note.midi) {
-            pitchText = '𝄽 休止符';
-        } else if (Array.isArray(note.midi) && note.midi.length > 1) {
-            pitchText = `和弦 [${note.chord ? note.chord.join(', ') : note.midi.join(', ')}] (${note.pitch || 'Chord'})`;
-        } else {
-            const m = Array.isArray(note.midi) ? note.midi[0] : note.midi;
-            const info = this.staff.midiToNoteInfo(m);
-            pitchText = `${info.name} (${info.solfege})`;
+        const { treble, bass } = this.getVoiceMidis(note);
+
+        if (voiceBadge) {
+            if (this.selectedVoice === 'bass') {
+                voiceBadge.textContent = '𝄢 低音部 (左手)';
+                voiceBadge.className = 'editor-badge badge-bass';
+            } else {
+                voiceBadge.textContent = '𝄞 高音部 (右手)';
+                voiceBadge.className = 'editor-badge badge-treble';
+            }
         }
 
-        const modeHint = this.isChordMode ? ' [⚡和弦堆疊模式 ON]' : '';
-        badge.innerHTML = `第 <strong>${this.selectedIndex + 1}/${total}</strong> 音 | 小節 <strong>m.${note.measure || 1}</strong> | <strong>${pitchText}</strong> | ${durText} | ${clefText}${modeHint}`;
+        let trebleDesc = treble.length > 0 
+            ? (treble.length === 1 ? this.staff.midiToNoteInfo(treble[0]).name : `[${treble.map(m => this.staff.midiToNoteInfo(m).name).join(' ')}]`) 
+            : '無';
+        let bassDesc = bass.length > 0 
+            ? (bass.length === 1 ? this.staff.midiToNoteInfo(bass[0]).name : `[${bass.map(m => this.staff.midiToNoteInfo(m).name).join(' ')}]`) 
+            : '無';
+
+        let voiceSummary = '';
+        if (treble.length > 0 && bass.length > 0) {
+            voiceSummary = `雙手合奏 (𝄞 ${trebleDesc} + 𝄢 ${bassDesc})`;
+        } else if (treble.length > 0) {
+            voiceSummary = `𝄞 右手: <strong>${trebleDesc}</strong>`;
+        } else if (bass.length > 0) {
+            voiceSummary = `𝄢 左手: <strong>${bassDesc}</strong>`;
+        } else {
+            voiceSummary = '𝄽 休止符';
+        }
+
+        const modeHint = this.isChordMode ? ' <span style="color: #fbbf24; font-weight: bold;">[⚡和弦堆疊 ON]</span>' : '';
+        const focusHint = `<span style="color: ${this.selectedVoice === 'treble' ? '#4ade80' : '#60a5fa'}; font-weight: bold;">[焦點: ${this.selectedVoice === 'treble' ? '𝄞 高音譜' : '𝄢 低音譜'}]</span>`;
+
+        badge.innerHTML = `第 <strong>${this.selectedIndex + 1}/${total}</strong> 音 | 小節 <strong>m.${note.measure || 1}</strong> | ${voiceSummary} | ${durText} | ${focusHint}${modeHint}`;
+
+        this.updateVoiceFocusButtons();
     }
 
     /**
@@ -380,56 +560,47 @@ class ScoreEditor {
         const note = this.currentSong.notes[this.selectedIndex];
         if (!note) return;
 
-        const info = this.staff.midiToNoteInfo(midi);
+        const { treble, bass } = this.getVoiceMidis(note);
+        let newTreble = [...treble];
+        let newBass = [...bass];
 
-        if (this.isChordMode) {
-            // Chord mode: stack or remove note from chord
-            let currentMidis = [];
-            if (Array.isArray(note.midi)) {
-                currentMidis = [...note.midi];
-            } else if (note.midi) {
-                currentMidis = [note.midi];
-            }
-
-            if (currentMidis.includes(midi)) {
-                // If note already present in chord and more than 1 note exists, toggle it off
-                if (currentMidis.length > 1) {
-                    currentMidis = currentMidis.filter(m => m !== midi);
-                }
-            } else {
-                currentMidis.push(midi);
-            }
-
-            currentMidis.sort((a, b) => a - b);
-            note.midi = currentMidis;
-            note.chord = currentMidis.map(m => this.staff.midiToNoteInfo(m).name);
-            note.isRest = false;
-
-            // Determine pitch label
-            if (currentMidis.length === 1) {
-                note.pitch = this.staff.midiToNoteInfo(currentMidis[0]).name;
-            } else {
-                note.pitch = this.analyzeChordName(currentMidis);
-            }
-
-            // If chord spans both treble & bass, set hand to both
-            const hasBass = currentMidis.some(m => m < 60);
-            const hasTreble = currentMidis.some(m => m >= 60);
-            if (hasBass && hasTreble) {
-                note.hand = 'both';
-            }
-        } else {
-            // Single note replacement mode
-            note.midi = midi;
-            note.pitch = info.name;
-            note.chord = null;
-            note.isRest = false;
-            note.clef = midi >= 60 ? 'treble' : 'bass';
-            note.hand = midi >= 60 ? 'right' : 'left';
+        let targetVoice = this.selectedVoice;
+        if (note.isRest && this.activeVoice === 'auto') {
+            targetVoice = (midi >= 60) ? 'treble' : 'bass';
+            this.selectedVoice = targetVoice;
         }
 
+        if (this.isChordMode) {
+            // Chord mode: stack into the targeted voice
+            if (targetVoice === 'treble') {
+                if (newTreble.includes(midi)) {
+                    if (newTreble.length > 1) {
+                        newTreble = newTreble.filter(m => m !== midi);
+                    }
+                } else {
+                    newTreble.push(midi);
+                }
+            } else {
+                if (newBass.includes(midi)) {
+                    if (newBass.length > 1) {
+                        newBass = newBass.filter(m => m !== midi);
+                    }
+                } else {
+                    newBass.push(midi);
+                }
+            }
+        } else {
+            // Single-note replacement in the targeted voice
+            if (targetVoice === 'treble') {
+                newTreble = [midi];
+            } else {
+                newBass = [midi];
+            }
+        }
+
+        this.applyVoiceMidisToNote(note, newTreble, newBass);
         this.staff.render();
-        this.selectNote(this.selectedIndex);
+        this.selectNote(this.selectedIndex, this.selectedVoice);
         this.notifyChange();
     }
 
@@ -441,20 +612,24 @@ class ScoreEditor {
         const note = this.currentSong.notes[this.selectedIndex];
         if (!note || note.isRest || !note.midi) return;
 
-        if (Array.isArray(note.midi)) {
-            note.midi = note.midi.map(m => Math.max(21, Math.min(108, m + semitones))).sort((a, b) => a - b);
-            note.chord = note.midi.map(m => this.staff.midiToNoteInfo(m).name);
-            note.pitch = this.analyzeChordName(note.midi);
+        const { treble, bass } = this.getVoiceMidis(note);
+        let newTreble = [...treble];
+        let newBass = [...bass];
+
+        if (this.selectedVoice === 'treble') {
+            if (newTreble.length === 0) return;
+            newTreble = newTreble.map(m => Math.max(21, Math.min(108, m + semitones))).sort((a, b) => a - b);
+        } else if (this.selectedVoice === 'bass') {
+            if (newBass.length === 0) return;
+            newBass = newBass.map(m => Math.max(21, Math.min(108, m + semitones))).sort((a, b) => a - b);
         } else {
-            const newMidi = Math.max(21, Math.min(108, note.midi + semitones));
-            note.midi = newMidi;
-            const info = this.staff.midiToNoteInfo(newMidi);
-            note.pitch = info.name;
-            note.clef = newMidi >= 60 ? 'treble' : 'bass';
+            newTreble = newTreble.map(m => Math.max(21, Math.min(108, m + semitones))).sort((a, b) => a - b);
+            newBass = newBass.map(m => Math.max(21, Math.min(108, m + semitones))).sort((a, b) => a - b);
         }
 
+        this.applyVoiceMidisToNote(note, newTreble, newBass);
         this.staff.render();
-        this.selectNote(this.selectedIndex);
+        this.selectNote(this.selectedIndex, this.selectedVoice);
         this.notifyChange();
     }
 
@@ -469,7 +644,7 @@ class ScoreEditor {
         note.duration = duration;
         this.recalculateMeasures();
         this.staff.render();
-        this.selectNote(this.selectedIndex);
+        this.selectNote(this.selectedIndex, this.selectedVoice);
         this.notifyChange();
     }
 
@@ -482,10 +657,19 @@ class ScoreEditor {
         if (!note) return;
 
         if (note.isRest) {
-            // Convert back to note
+            // Convert back to note in current selected voice
             note.isRest = false;
-            note.midi = 60; // Middle C
-            note.pitch = 'C4';
+            if (this.selectedVoice === 'bass') {
+                note.midi = 48; // C3
+                note.clef = 'bass';
+                note.hand = 'left';
+                note.pitch = 'C3';
+            } else {
+                note.midi = 60; // Middle C
+                note.clef = 'treble';
+                note.hand = 'right';
+                note.pitch = 'C4';
+            }
             note.chord = null;
         } else {
             // Convert to rest
@@ -496,7 +680,7 @@ class ScoreEditor {
         }
 
         this.staff.render();
-        this.selectNote(this.selectedIndex);
+        this.selectNote(this.selectedIndex, this.selectedVoice);
         this.notifyChange();
     }
 
@@ -513,10 +697,11 @@ class ScoreEditor {
         } else {
             note.clef = clef;
             note.hand = clef === 'treble' ? 'right' : 'left';
+            this.selectedVoice = clef;
         }
 
         this.staff.render();
-        this.selectNote(this.selectedIndex);
+        this.selectNote(this.selectedIndex, this.selectedVoice);
         this.notifyChange();
     }
 
@@ -529,8 +714,9 @@ class ScoreEditor {
         if (!note || note.isRest || !note.midi) return;
 
         if (!note.accidentals) note.accidentals = {};
-        const midis = Array.isArray(note.midi) ? note.midi : [note.midi];
-        const targetMidi = midis[0];
+        const { treble, bass } = this.getVoiceMidis(note);
+        const targetMidis = (this.selectedVoice === 'bass') ? bass : treble;
+        const targetMidi = targetMidis.length > 0 ? targetMidis[targetMidis.length - 1] : (Array.isArray(note.midi) ? note.midi[0] : note.midi);
 
         if (note.accidentals[targetMidi] === accChar) {
             delete note.accidentals[targetMidi];
@@ -539,7 +725,7 @@ class ScoreEditor {
         }
 
         this.staff.render();
-        this.selectNote(this.selectedIndex);
+        this.selectNote(this.selectedIndex, this.selectedVoice);
         this.notifyChange();
     }
 
@@ -553,7 +739,7 @@ class ScoreEditor {
 
         note[type] = !note[type];
         this.staff.render();
-        this.selectNote(this.selectedIndex);
+        this.selectNote(this.selectedIndex, this.selectedVoice);
         this.notifyChange();
     }
 
@@ -564,12 +750,16 @@ class ScoreEditor {
         if (!this.isActive || !this.currentSong) return;
         const baseNote = this.currentSong.notes[this.selectedIndex] || { duration: 1, clef: 'treble', hand: 'right' };
         
+        const isTreble = this.selectedVoice === 'treble';
+        const defaultMidi = isTreble ? 60 : 48;
+        const defaultPitch = isTreble ? 'C4' : 'C3';
+
         const newNote = {
-            pitch: baseNote.isRest ? 'C4' : (baseNote.pitch || 'C4'),
-            midi: baseNote.isRest ? 60 : (baseNote.midi ? (Array.isArray(baseNote.midi) ? baseNote.midi[0] : baseNote.midi) : 60),
+            pitch: baseNote.isRest ? defaultPitch : (baseNote.pitch || defaultPitch),
+            midi: baseNote.isRest ? defaultMidi : (baseNote.midi ? (Array.isArray(baseNote.midi) ? baseNote.midi[0] : baseNote.midi) : defaultMidi),
             duration: baseNote.duration || 1,
-            clef: baseNote.clef || 'treble',
-            hand: baseNote.hand || 'right'
+            clef: isTreble ? 'treble' : 'bass',
+            hand: isTreble ? 'right' : 'left'
         };
 
         const targetIndex = position === 'before' ? this.selectedIndex : this.selectedIndex + 1;
@@ -577,15 +767,35 @@ class ScoreEditor {
 
         this.recalculateMeasures();
         this.staff.render();
-        this.selectNote(targetIndex);
+        this.selectNote(targetIndex, this.selectedVoice);
         this.notifyChange();
     }
 
     /**
-     * Deletes the currently selected note
+     * Deletes the currently selected note or current voice
      */
     deleteNote() {
         if (!this.isActive || !this.currentSong) return;
+        const note = this.currentSong.notes[this.selectedIndex];
+        if (!note) return;
+
+        const { treble, bass } = this.getVoiceMidis(note);
+
+        // If note has both treble and bass, delete only the focused voice!
+        if (treble.length > 0 && bass.length > 0) {
+            if (this.selectedVoice === 'treble') {
+                this.applyVoiceMidisToNote(note, [], bass);
+                this.selectedVoice = 'bass';
+            } else {
+                this.applyVoiceMidisToNote(note, treble, []);
+                this.selectedVoice = 'treble';
+            }
+            this.staff.render();
+            this.selectNote(this.selectedIndex, this.selectedVoice);
+            this.notifyChange();
+            return;
+        }
+
         if (this.currentSong.notes.length <= 1) {
             alert('樂譜中至少需要保留一個音符！');
             return;
@@ -596,7 +806,7 @@ class ScoreEditor {
 
         this.recalculateMeasures();
         this.staff.render();
-        this.selectNote(nextIndex);
+        this.selectNote(nextIndex, this.selectedVoice);
         this.notifyChange();
     }
 

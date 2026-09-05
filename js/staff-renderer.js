@@ -15,6 +15,7 @@ class StaffRenderer {
         this.activeMidiNotes = new Set(); // Set of currently active MIDI numbers
         this.activeSongNoteIndex = -1;
         this.editorSelectedNoteIndex = -1;
+        this.editorSelectedVoice = 'treble'; // 'treble', 'bass', or 'both'
         this.onNoteClick = null;
 
         // Music Theory Constants
@@ -40,37 +41,57 @@ class StaffRenderer {
     setMode(mode, song = null) {
         this.mode = mode;
         this.currentSong = song;
-        this.activeSongNoteIndex = -1;
         this.render();
     }
 
     setActiveSongNote(index) {
         this.activeSongNoteIndex = index;
-        if (this.mode === 'song') {
+        if (this.mode === 'song' || this.mode === 'editor') {
             this.updateSongCursor();
         }
     }
 
-    setEditorSelectedNote(index) {
+    setSongCursor(index) {
+        this.setActiveSongNote(index);
+    }
+
+    setEditorSelectedNote(index, voice = 'treble') {
         this.editorSelectedNoteIndex = index;
+        this.editorSelectedVoice = voice || 'treble';
         if (this.mode === 'song' || this.mode === 'editor') {
             const noteItems = this.container.querySelectorAll('.song-note-item');
-            noteItems.forEach(el => el.classList.remove('editor-selected'));
-            const oldRect = this.container.querySelector('.editor-selection-rect');
-            if (oldRect) oldRect.remove();
+            noteItems.forEach(el => {
+                el.classList.remove('editor-selected', 'voice-treble', 'voice-bass', 'voice-both');
+            });
+            const oldRects = this.container.querySelectorAll('.editor-selection-rect, .editor-selection-rect-treble, .editor-selection-rect-bass');
+            oldRects.forEach(r => r.remove());
 
             const selectedEl = this.container.querySelector(`.song-note-item[data-index="${index}"]`);
             if (selectedEl) {
-                selectedEl.classList.add('editor-selected');
+                selectedEl.classList.add('editor-selected', `voice-${this.editorSelectedVoice}`);
                 const firstSvgChild = selectedEl.querySelector('ellipse') || selectedEl.querySelector('text');
                 const xVal = parseFloat(firstSvgChild?.getAttribute('cx') || firstSvgChild?.getAttribute('x') || 0);
                 if (xVal > 0) {
                     const rectElem = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-                    rectElem.setAttribute('class', 'editor-selection-rect');
-                    rectElem.setAttribute('x', (xVal - 18).toString());
-                    rectElem.setAttribute('y', '20');
-                    rectElem.setAttribute('width', '36');
-                    rectElem.setAttribute('height', '230');
+                    if (this.editorSelectedVoice === 'bass') {
+                        rectElem.setAttribute('class', 'editor-selection-rect editor-selection-rect-bass');
+                        rectElem.setAttribute('x', (xVal - 18).toString());
+                        rectElem.setAttribute('y', '136');
+                        rectElem.setAttribute('width', '36');
+                        rectElem.setAttribute('height', '106');
+                    } else if (this.editorSelectedVoice === 'treble') {
+                        rectElem.setAttribute('class', 'editor-selection-rect editor-selection-rect-treble');
+                        rectElem.setAttribute('x', (xVal - 18).toString());
+                        rectElem.setAttribute('y', '18');
+                        rectElem.setAttribute('width', '36');
+                        rectElem.setAttribute('height', '106');
+                    } else {
+                        rectElem.setAttribute('class', 'editor-selection-rect');
+                        rectElem.setAttribute('x', (xVal - 18).toString());
+                        rectElem.setAttribute('y', '20');
+                        rectElem.setAttribute('width', '36');
+                        rectElem.setAttribute('height', '230');
+                    }
                     selectedEl.prepend(rectElem);
                 }
 
@@ -555,8 +576,17 @@ class StaffRenderer {
             if (note.isRest || note.pitch === 'rest' || !note.midi) {
                 const restY = note.clef === 'bass' ? 192 : 72;
                 const isSelected = (this.editorSelectedNoteIndex === index);
-                const selRect = isSelected ? `<rect class="editor-selection-rect" x="${x - 18}" y="20" width="36" height="230"/>` : '';
-                const selClass = isSelected ? ' editor-selected' : '';
+                let selRect = '';
+                if (isSelected) {
+                    if (this.editorSelectedVoice === 'bass') {
+                        selRect = `<rect class="editor-selection-rect editor-selection-rect-bass" x="${x - 18}" y="136" width="36" height="106"/>`;
+                    } else if (this.editorSelectedVoice === 'treble') {
+                        selRect = `<rect class="editor-selection-rect editor-selection-rect-treble" x="${x - 18}" y="18" width="36" height="106"/>`;
+                    } else {
+                        selRect = `<rect class="editor-selection-rect" x="${x - 18}" y="20" width="36" height="230"/>`;
+                    }
+                }
+                const selClass = isSelected ? ` editor-selected voice-${this.editorSelectedVoice || 'treble'}` : '';
                 svg += `
                     <g class="song-note-item song-rest-item${selClass}" id="song-note-${index}" data-index="${index}" style="cursor: pointer;">
                         ${selRect}
@@ -570,13 +600,6 @@ class StaffRenderer {
             const midis = Array.isArray(note.midi) ? [...note.midi].sort((a, b) => a - b) : [note.midi];
             const isHollow = note.duration >= 2;
 
-            let noteheadsSvg = '';
-            let ledgerLinesSvg = '';
-            let accidentalsSvg = '';
-            let tenutoSvg = '';
-            let accentSvg = '';
-            let tiesSvg = '';
-
             // Group midis by clef (treble vs bass)
             const trebleMidis = midis.filter(m => m >= 60 || (note.clef === 'treble' && m >= 55));
             const bassMidis = midis.filter(m => m < 60 && !(note.clef === 'treble' && m >= 55));
@@ -587,6 +610,7 @@ class StaffRenderer {
 
             let primaryLabelY = 24;
             let primaryLabel = note.label || note.pitch;
+            let voiceGroupsSvg = '';
 
             groupsToRender.forEach(grp => {
                 const grpColor = grp.color;
@@ -595,6 +619,13 @@ class StaffRenderer {
                 const noteYList = [];
                 const stepList = [];
 
+                let grpLedger = '';
+                let grpAccidentals = '';
+                let grpNoteheads = '';
+                let grpTenuto = '';
+                let grpAccent = '';
+                let grpTies = '';
+
                 grp.midis.forEach(m => {
                     const info = this.midiToNoteInfo(m);
                     const yPos = this.getYForDiatonicStep(info.diatonicStep, grp.clef);
@@ -602,7 +633,7 @@ class StaffRenderer {
                     stepList.push(info.diatonicStep);
 
                     // Ledger lines
-                    ledgerLinesSvg += this.calculateLedgerLines(info.diatonicStep, x, grp.clef);
+                    grpLedger += this.calculateLedgerLines(info.diatonicStep, x, grp.clef);
 
                     // Accidentals
                     let accChar = '';
@@ -613,11 +644,11 @@ class StaffRenderer {
                     }
 
                     if (accChar) {
-                        accidentalsSvg += `<text x="${x - 14}" y="${yPos + 4}" font-size="14" font-weight="bold" fill="${grpColor}">${accChar}</text>`;
+                        grpAccidentals += `<text x="${x - 14}" y="${yPos + 4}" font-size="14" font-weight="bold" fill="${grpColor}">${accChar}</text>`;
                     }
 
                     // Note Head
-                    noteheadsSvg += `<ellipse cx="${x}" cy="${yPos}" rx="6.5" ry="4.8" transform="rotate(-22 ${x} ${yPos})" fill="${fill}" stroke="${stroke}" stroke-width="${isHollow ? 2 : 1}"/>`;
+                    grpNoteheads += `<ellipse class="voice-${grp.clef}" cx="${x}" cy="${yPos}" rx="6.5" ry="4.8" transform="rotate(-22 ${x} ${yPos})" fill="${fill}" stroke="${stroke}" stroke-width="${isHollow ? 2 : 1}"/>`;
                 });
 
                 // Stem for group
@@ -629,28 +660,28 @@ class StaffRenderer {
 
                 if (pointsUp) {
                     const stemX = x + 6.5;
-                    noteheadsSvg += `<line x1="${stemX}" y1="${maxY}" x2="${stemX}" y2="${minY - stemHeight}" stroke="${grpColor}" stroke-width="1.6"/>`;
+                    grpNoteheads += `<line x1="${stemX}" y1="${maxY}" x2="${stemX}" y2="${minY - stemHeight}" stroke="${grpColor}" stroke-width="1.6"/>`;
                 } else {
                     const stemX = x - 6.5;
-                    noteheadsSvg += `<line x1="${stemX}" y1="${minY}" x2="${stemX}" y2="${maxY + stemHeight}" stroke="${grpColor}" stroke-width="1.6"/>`;
+                    grpNoteheads += `<line x1="${stemX}" y1="${minY}" x2="${stemX}" y2="${maxY + stemHeight}" stroke="${grpColor}" stroke-width="1.6"/>`;
                 }
 
                 // Tenuto
                 if (note.tenuto && grp.clef === 'bass') {
                     const tenutoY = Math.max(maxY + 12, 222);
-                    tenutoSvg += `<line x1="${x - 7}" y1="${tenutoY}" x2="${x + 7}" y2="${tenutoY}" stroke="${grpColor}" stroke-width="2.2" stroke-linecap="round"/>`;
+                    grpTenuto += `<line x1="${x - 7}" y1="${tenutoY}" x2="${x + 7}" y2="${tenutoY}" stroke="${grpColor}" stroke-width="2.2" stroke-linecap="round"/>`;
                 }
 
                 // Accent
                 if (note.accent) {
                     const accY = minY - (pointsUp ? stemHeight + 8 : 10);
-                    accentSvg += `<text x="${x}" y="${accY}" text-anchor="middle" font-size="18" font-weight="900" fill="#f59e0b">&gt;</text>`;
+                    grpAccent += `<text x="${x}" y="${accY}" text-anchor="middle" font-size="18" font-weight="900" fill="#f59e0b">&gt;</text>`;
                 }
 
                 // Ties
                 if (note.tied) {
                     noteYList.forEach(yPos => {
-                        tiesSvg += `<path d="M ${x + 6} ${yPos - 2} Q ${x + 18} ${yPos - 8} ${x + 30} ${yPos - 2}" fill="none" stroke="${grpColor}" stroke-width="1.5" stroke-dasharray="3,1"/>`;
+                        grpTies += `<path d="M ${x + 6} ${yPos - 2} Q ${x + 18} ${yPos - 8} ${x + 30} ${yPos - 2}" fill="none" stroke="${grpColor}" stroke-width="1.5" stroke-dasharray="3,1"/>`;
                     });
                 }
 
@@ -659,21 +690,36 @@ class StaffRenderer {
                 } else if (grp.clef === 'treble') {
                     primaryLabelY = Math.min(minY - 24, 28);
                 }
+
+                voiceGroupsSvg += `
+                    <g class="voice-group voice-${grp.clef}" data-voice="${grp.clef}">
+                        ${grpLedger}
+                        ${grpAccidentals}
+                        ${grpNoteheads}
+                        ${grpTenuto}
+                        ${grpAccent}
+                        ${grpTies}
+                    </g>
+                `;
             });
 
             const isSelected = (this.editorSelectedNoteIndex === index);
-            const selRect = isSelected ? `<rect class="editor-selection-rect" x="${x - 18}" y="20" width="36" height="230"/>` : '';
-            const selClass = isSelected ? ' editor-selected' : '';
+            let selRect = '';
+            if (isSelected) {
+                if (this.editorSelectedVoice === 'bass') {
+                    selRect = `<rect class="editor-selection-rect editor-selection-rect-bass" x="${x - 18}" y="136" width="36" height="106"/>`;
+                } else if (this.editorSelectedVoice === 'treble') {
+                    selRect = `<rect class="editor-selection-rect editor-selection-rect-treble" x="${x - 18}" y="18" width="36" height="106"/>`;
+                } else {
+                    selRect = `<rect class="editor-selection-rect" x="${x - 18}" y="20" width="36" height="230"/>`;
+                }
+            }
+            const selClass = isSelected ? ` editor-selected voice-${this.editorSelectedVoice || 'treble'}` : '';
 
             svg += `
                 <g class="song-note-item${selClass}" id="song-note-${index}" data-index="${index}" style="cursor: pointer;">
                     ${selRect}
-                    ${ledgerLinesSvg}
-                    ${accidentalsSvg}
-                    ${noteheadsSvg}
-                    ${tenutoSvg}
-                    ${accentSvg}
-                    ${tiesSvg}
+                    ${voiceGroupsSvg}
                     <text x="${x}" y="${primaryLabelY}" text-anchor="middle" font-size="10" font-weight="600" fill="#cbd5e1" class="note-name-label">
                         ${primaryLabel}
                     </text>
@@ -698,8 +744,29 @@ class StaffRenderer {
             item.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const idx = parseInt(item.getAttribute('data-index'), 10);
+                let clickedVoice = 'treble';
+
+                // Check if directly clicked on a voice element
+                const voiceGroup = e.target.closest('[data-voice]');
+                if (voiceGroup) {
+                    clickedVoice = voiceGroup.getAttribute('data-voice');
+                } else {
+                    // Coordinate detection in SVG space (y < 130 is treble, y >= 130 is bass)
+                    const svgElem = this.container.querySelector('svg');
+                    if (svgElem) {
+                        const pt = svgElem.createSVGPoint();
+                        pt.x = e.clientX;
+                        pt.y = e.clientY;
+                        const ctm = svgElem.getScreenCTM();
+                        if (ctm) {
+                            const svgP = pt.matrixTransform(ctm.inverse());
+                            clickedVoice = (svgP.y < 130) ? 'treble' : 'bass';
+                        }
+                    }
+                }
+
                 if (typeof this.onNoteClick === 'function') {
-                    this.onNoteClick(idx);
+                    this.onNoteClick(idx, clickedVoice, e);
                 }
             });
         });

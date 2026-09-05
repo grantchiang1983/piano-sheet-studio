@@ -95,7 +95,7 @@
             <!-- Top Status & Global Actions -->
             <div class="editor-status-bar">
                 <div class="editor-selected-info">
-                    <span class="editor-badge">當前選取</span>
+                    <span class="editor-badge badge-treble" id="editor-voice-badge">𝄞 高音部</span>
                     <span id="editor-note-info-text">點擊五線譜上的任一音符開始編輯</span>
                 </div>
                 <div class="editor-global-actions">
@@ -111,6 +111,16 @@
 
             <!-- Note Editing Controls Palette -->
             <div class="editor-controls-palette">
+                <!-- Voice Focus Track -->
+                <div class="editor-control-group">
+                    <span class="editor-group-title">聲部聚焦:</span>
+                    <div class="btn-group">
+                        <button id="editor-voice-auto-btn" class="editor-opt-btn active" title="自由點選：點擊大譜表上方自動選高音，點擊下方自動選低音">🎼 自由 (自動)</button>
+                        <button id="editor-voice-treble-btn" class="editor-opt-btn btn-voice-treble" title="聚焦高音譜 (右手旋律/和弦)：鍵盤輸入僅修改高音部，保護低音部不被覆蓋">𝄞 僅高音 (右)</button>
+                        <button id="editor-voice-bass-btn" class="editor-opt-btn btn-voice-bass" title="聚焦低音譜 (左手伴奏/低音)：鍵盤輸入僅修改低音部，保護高音部不被覆蓋">𝄢 僅低音 (左)</button>
+                    </div>
+                </div>
+
                 <!-- Duration Palette -->
                 <div class="editor-control-group">
                     <span class="editor-group-title">時值:</span>
@@ -163,6 +173,7 @@
                         <button id="editor-chord-mode-btn" class="editor-opt-btn" title="開啟和弦模式：彈奏琴鍵會將音疊加進當前和弦，而非替換單音">🎹 和弦堆疊: OFF</button>
                         <button id="editor-prev-note-btn" class="editor-opt-btn" title="選取上一個音符 (←)">◀ 上一個</button>
                         <button id="editor-next-note-btn" class="editor-opt-btn" title="選取下一個音符 (→)">下一個 ▶</button>
+                        <button id="editor-add-opposite-voice-btn" class="editor-opt-btn" title="在當前拍添加另一聲部 (添左手伴奏或右手和弦)">➕ 添合奏音</button>
                         <button id="editor-insert-before-btn" class="editor-opt-btn" title="在當前音符前方插入新音符">➕ 前插</button>
                         <button id="editor-insert-after-btn" class="editor-opt-btn" title="在當前音符後方插入新音符">➕ 後插</button>
                         <button id="editor-delete-note-btn" class="editor-opt-btn btn-danger-subtle" title="刪除選取音符 (可按 Delete 或 Backspace)">🗑️ 刪除</button>
@@ -459,13 +470,13 @@
     </div>
 
     <!-- Application Scripts -->
-    <script src="js/audio-engine.js?v=1.7"></script>
-    <script src="js/songs-database.js?v=1.7"></script>
-    <script src="js/staff-renderer.js?v=1.7"></script>
-    <script src="js/piano-view.js?v=1.7"></script>
-    <script src="js/score-player.js?v=1.7"></script>
-    <script src="js/score-editor.js?v=1.7"></script>
-    <script src="js/midi-controller.js?v=1.7"></script>
-    <script src="js/app.js?v=1.7"></script>
+    <script src="js/audio-engine.js?v=1.8"></script>
+    <script src="js/songs-database.js?v=1.8"></script>
+    <script src="js/staff-renderer.js?v=1.8"></script>
+    <script src="js/piano-view.js?v=1.8"></script>
+    <script src="js/score-player.js?v=1.8"></script>
+    <script src="js/score-editor.js?v=1.8"></script>
+    <script src="js/midi-controller.js?v=1.8"></script>
+    <script src="js/app.js?v=1.8"></script>
 </body>
 </html>

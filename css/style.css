@@ -693,6 +693,19 @@ kbd {
     padding: 3px 8px;
     border-radius: 4px;
     letter-spacing: 0.5px;
+    transition: all 0.2s ease;
+}
+
+.editor-badge.badge-treble {
+    background: #059669;
+    color: #ffffff;
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.45);
+}
+
+.editor-badge.badge-bass {
+    background: #2563eb;
+    color: #ffffff;
+    box-shadow: 0 0 8px rgba(37, 99, 235, 0.45);
 }
 
 #editor-note-info-text {
@@ -813,6 +826,32 @@ kbd {
     background: #f59e0b !important;
     color: #0f172a !important;
     font-weight: 800;
+}
+
+.editor-opt-btn.btn-voice-treble.active {
+    background: #059669 !important;
+    border-color: #10b981 !important;
+    color: #fff !important;
+    font-weight: 800;
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.45);
+}
+
+.editor-opt-btn.btn-voice-bass.active {
+    background: #2563eb !important;
+    border-color: #3b82f6 !important;
+    color: #fff !important;
+    font-weight: 800;
+    box-shadow: 0 0 10px rgba(37, 99, 235, 0.45);
+}
+
+.editor-opt-btn.btn-voice-treble:hover {
+    border-color: #10b981;
+    color: #4ade80;
+}
+
+.editor-opt-btn.btn-voice-bass:hover {
+    border-color: #3b82f6;
+    color: #60a5fa;
 }
 
 .editor-quick-hint {
