@@ -58,6 +58,9 @@ class StaffRenderer {
     }
 
     midiToNoteInfo(midi) {
+        if (!midi) {
+            return { midi: 0, name: '', baseLetter: 'C', isSharp: false, octave: 4, solfege: '', number: '', diatonicStep: 0 };
+        }
         const octave = Math.floor(midi / 12) - 1;
         const noteIndex = midi % 12;
         const nameWithAccidental = this.pitchNames[noteIndex];
@@ -381,6 +384,18 @@ class StaffRenderer {
                 `;
             }
 
+            // Handle Rest (休止符)
+            if (note.isRest || note.pitch === 'rest' || !note.midi) {
+                const restY = note.clef === 'treble' ? 72 : 192;
+                svg += `
+                    <g class="song-note-item song-rest-item" id="song-note-${index}" data-index="${index}">
+                        <text x="${x}" y="${restY}" text-anchor="middle" font-size="28" fill="#94a3b8" font-family="'Noto Music', 'Bravura', serif">𝄽</text>
+                        <text x="${x}" y="${restY + 28}" text-anchor="middle" font-size="9" fill="#64748b">休止</text>
+                    </g>
+                `;
+                return;
+            }
+
             // Ledger Lines
             svg += this.calculateLedgerLines(noteInfo.diatonicStep, x);
 
@@ -394,10 +409,18 @@ class StaffRenderer {
             const fill = isHollow ? 'none' : color;
             const stroke = color;
 
+            // Tenuto line (保持音短橫線)
+            let tenutoSvg = '';
+            if (note.tenuto) {
+                const tenutoY = y > 130 ? y + 12 : y - 12;
+                tenutoSvg = `<line x1="${x - 7}" y1="${tenutoY}" x2="${x + 7}" y2="${tenutoY}" stroke="${color}" stroke-width="2"/>`;
+            }
+
             svg += `
                 <g class="song-note-item" id="song-note-${index}" data-index="${index}" style="cursor: pointer;">
                     <ellipse cx="${x}" cy="${y}" rx="6.5" ry="4.8" transform="rotate(-22 ${x} ${y})" fill="${fill}" stroke="${stroke}" stroke-width="${isHollow ? 2 : 1}"/>
                     ${this.renderStem(noteInfo.diatonicStep, x, y, color)}
+                    ${tenutoSvg}
                     <text x="${x}" y="${y > 130 ? y + 26 : y - 22}" text-anchor="middle" font-size="10" fill="#cbd5e1" class="note-name-label">
                         ${noteInfo.name}
                     </text>

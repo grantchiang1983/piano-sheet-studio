@@ -146,6 +146,17 @@ class ScorePlayer {
         const msPerBeat = 60000 / this.bpm;
         const durationMs = note.duration * msPerBeat;
 
+        // If rest (休止符), do not play audio or press key
+        if (note.isRest || note.pitch === 'rest' || !note.midi) {
+            this.staff.setActiveSongNote(this.currentNoteIndex);
+            this.onProgress(this.currentNoteIndex, this.currentSong.notes.length);
+            this.currentNoteIndex++;
+            this.playbackTimer = setTimeout(() => {
+                this.scheduleNextNote();
+            }, durationMs);
+            return;
+        }
+
         // Highlight and sound
         const handColor = note.hand === 'left' ? 'left' : 'right';
         this.piano.pressKey(note.midi, 0.85, true, handColor);
@@ -173,13 +184,25 @@ class ScorePlayer {
      */
     setupPracticeNote() {
         if (!this.currentSong) return;
+
+        // Skip rests in practice mode
+        while (this.currentNoteIndex < this.currentSong.notes.length && 
+               (this.currentSong.notes[this.currentNoteIndex].isRest || !this.currentSong.notes[this.currentNoteIndex].midi)) {
+            this.currentNoteIndex++;
+        }
+
         if (this.currentNoteIndex >= this.currentSong.notes.length) {
-            this.currentNoteIndex = 0; // Loop practice
+            this.currentNoteIndex = 0;
+            while (this.currentNoteIndex < this.currentSong.notes.length && 
+                   (this.currentSong.notes[this.currentNoteIndex].isRest || !this.currentSong.notes[this.currentNoteIndex].midi)) {
+                this.currentNoteIndex++;
+            }
         }
 
         const targetNote = this.currentSong.notes[this.currentNoteIndex];
-        this.staff.setActiveSongNote(this.currentNoteIndex);
+        if (!targetNote) return;
 
+        this.staff.setActiveSongNote(this.currentNoteIndex);
         this.piano.clearKeyHints();
         this.piano.highlightKeyHint(targetNote.midi, true);
 
