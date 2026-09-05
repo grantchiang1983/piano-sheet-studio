@@ -351,6 +351,80 @@ class StaffRenderer {
     }
 
     /**
+     * Map Key Signature to standard accidentals and count
+     */
+    getKeySignatureInfo(key) {
+        if (!key) return { count: 0, type: 'sharp' };
+        const cleanKey = key.trim();
+        const keyMap = {
+            'C': { count: 0, type: 'sharp' },
+            'Am': { count: 0, type: 'sharp' },
+            'G': { count: 1, type: 'sharp' },
+            'Em': { count: 1, type: 'sharp' },
+            'D': { count: 2, type: 'sharp' },
+            'Bm': { count: 2, type: 'sharp' },
+            'A': { count: 3, type: 'sharp' },
+            'F#m': { count: 3, type: 'sharp' },
+            'E': { count: 4, type: 'sharp' },
+            'C#m': { count: 4, type: 'sharp' },
+            'B': { count: 5, type: 'sharp' },
+            'G#m': { count: 5, type: 'sharp' },
+            'F': { count: 1, type: 'flat' },
+            'Dm': { count: 1, type: 'flat' },
+            'Bb': { count: 2, type: 'flat' },
+            'Gm': { count: 2, type: 'flat' },
+            'Eb': { count: 3, type: 'flat' },
+            'Cm': { count: 3, type: 'flat' },
+            'Ab': { count: 4, type: 'flat' },
+            'Fm': { count: 4, type: 'flat' }
+        };
+        return keyMap[cleanKey] || { count: 0, type: 'sharp' };
+    }
+
+    /**
+     * Render Standard Grand Staff Key Signature (Sharps ♯ or Flats ♭)
+     * Treble Staff: F5 (46), C5 (64), G5 (40), D5 (58), A4 (76), E5 (52), B4 (70)
+     * Bass Staff: F3 (178), C3 (196), G3 (172), D3 (190), A2 (208), E3 (184), B2 (202)
+     */
+    renderKeySignature(key, startX = 88) {
+        const info = this.getKeySignatureInfo(key);
+        if (!info || info.count === 0) return { svg: '', width: 0, nextX: startX };
+
+        const sharpPositions = {
+            treble: [46, 64, 40, 58, 76, 52, 70], // F5, C5, G5, D5, A4, E5, B4
+            bass: [178, 196, 172, 190, 208, 184, 202] // F3, C3, G3, D3, A2, E3, B2
+        };
+
+        const flatPositions = {
+            treble: [70, 52, 76, 58, 82, 64, 88], // Bb4, Eb5, Ab4, Db5, Gb4, Cb5, Fb4
+            bass: [202, 184, 208, 190, 214, 196, 220] // Bb2, Eb3, Ab2, Db3, Gb2, Cb3, Fb2
+        };
+
+        const char = info.type === 'sharp' ? '♯' : '♭';
+        const positions = info.type === 'sharp' ? sharpPositions : flatPositions;
+        const spacing = 12;
+        let svg = `<g class="key-signature-group" data-key="${key}">`;
+
+        for (let i = 0; i < info.count; i++) {
+            const curX = startX + i * spacing;
+            const trebleY = positions.treble[i];
+            const bassY = positions.bass[i];
+
+            // Treble & Bass accidentals with optical vertical centering on line/space
+            svg += `<text x="${curX}" y="${trebleY}" font-size="19" font-weight="bold" fill="#f8fafc" text-anchor="middle" dominant-baseline="central" class="key-sig-symbol">${char}</text>`;
+            svg += `<text x="${curX}" y="${bassY}" font-size="19" font-weight="bold" fill="#f8fafc" text-anchor="middle" dominant-baseline="central" class="key-sig-symbol">${char}</text>`;
+        }
+
+        svg += `</g>`;
+        const totalWidth = info.count * spacing;
+        return {
+            svg,
+            width: totalWidth,
+            nextX: startX + totalWidth + 12
+        };
+    }
+
+    /**
      * Render Full Song Score View with Measures and Playback Tracking
      */
     renderSongView() {
@@ -359,7 +433,11 @@ class StaffRenderer {
         const song = this.currentSong;
         const totalNotes = song.notes.length;
         const noteSpacing = 42;
-        const headerWidth = 140;
+
+        // Dynamic Key Signature (調號) & Header Geometry
+        const keySig = this.renderKeySignature(song.key, 86);
+        const timeSigX = keySig.width > 0 ? keySig.nextX : 98;
+        const headerWidth = Math.max(140, timeSigX + 32);
         const totalWidth = Math.max(this.container.clientWidth || 920, headerWidth + totalNotes * noteSpacing + 80);
         const height = 290;
 
@@ -397,16 +475,19 @@ class StaffRenderer {
         }
         svg += `</g>`;
 
-        // Clefs & Time Signature
+        // Clefs, Key Signature & Time Signature
         svg += `
             <text x="50" y="91" class="clef-symbol" font-size="54" fill="#f8fafc" font-family="'Noto Music', 'Bravura', serif">𝄞</text>
             ${this.renderBassClef(50)}
             
+            <!-- Key Signature (調號) -->
+            ${keySig.svg}
+
             <!-- Time Signature -->
-            <text x="100" y="68" font-size="22" font-weight="bold" fill="#e2b714" text-anchor="middle">${song.timeSignature.split('/')[0]}</text>
-            <text x="100" y="92" font-size="22" font-weight="bold" fill="#e2b714" text-anchor="middle">${song.timeSignature.split('/')[1]}</text>
-            <text x="100" y="188" font-size="22" font-weight="bold" fill="#e2b714" text-anchor="middle">${song.timeSignature.split('/')[0]}</text>
-            <text x="100" y="212" font-size="22" font-weight="bold" fill="#e2b714" text-anchor="middle">${song.timeSignature.split('/')[1]}</text>
+            <text x="${timeSigX}" y="68" font-size="22" font-weight="bold" fill="#e2b714" text-anchor="middle">${song.timeSignature.split('/')[0]}</text>
+            <text x="${timeSigX}" y="92" font-size="22" font-weight="bold" fill="#e2b714" text-anchor="middle">${song.timeSignature.split('/')[1]}</text>
+            <text x="${timeSigX}" y="188" font-size="22" font-weight="bold" fill="#e2b714" text-anchor="middle">${song.timeSignature.split('/')[0]}</text>
+            <text x="${timeSigX}" y="212" font-size="22" font-weight="bold" fill="#e2b714" text-anchor="middle">${song.timeSignature.split('/')[1]}</text>
         `;
 
         // Measure Bars & Notes
