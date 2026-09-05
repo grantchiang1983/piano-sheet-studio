@@ -73,6 +73,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 6. Initialize Score Editor
     const editor = new ScoreEditor(audio, piano, staff, player);
+    window.appEditor = editor;
 
     // Recording State
     let isRecording = false;

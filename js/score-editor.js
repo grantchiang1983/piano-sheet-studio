@@ -624,16 +624,28 @@ class ScoreEditor {
     }
 
     /**
-     * Analyzes chord names from an array of midi notes
+     * Analyzes chord names from an array of midi notes using StaffRenderer detectChord
      */
     analyzeChordName(midis) {
         if (!midis || midis.length === 0) return '';
         if (midis.length === 1) return this.staff.midiToNoteInfo(midis[0]).name;
 
+        // Extract pitch classes (0-11)
+        const pitchClasses = Array.from(new Set(midis.map(m => m % 12))).sort((a, b) => a - b);
+        const detected = this.staff.detectChord(pitchClasses);
         const bassInfo = this.staff.midiToNoteInfo(midis[0]);
-        const highestInfo = this.staff.midiToNoteInfo(midis[midis.length - 1]);
 
-        return `${highestInfo.baseLetter}和弦/${bassInfo.name}`;
+        if (detected) {
+            // Check inversion (if bass note is different from root)
+            const rootLetter = detected.name[0];
+            if (bassInfo.baseLetter !== rootLetter && midis.length >= 3 && bassInfo.midi < 60) {
+                return `${detected.name}/${bassInfo.name}`;
+            }
+            return detected.name;
+        }
+
+        const noteLetters = midis.map(m => this.staff.midiToNoteInfo(m).baseLetter);
+        return Array.from(new Set(noteLetters)).join('');
     }
 
     /**
